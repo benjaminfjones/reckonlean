@@ -3,8 +3,7 @@
 
 namespace List
   /- TODO Do we actually need `end_itlist` ?-/
-  def end_itlist [Inhabited α] (f: α → α → α) (l: List α) : α :=
-    match l with
+  def end_itlist [Inhabited α] (f: α → α → α) : List α → α
     | [] => panic! "end_itlist"
     | [x] => x
     | h :: t => f h (end_itlist f t)
@@ -19,8 +18,7 @@ namespace List
   example : all_pairs (fun x y => x * y) [1,2,3] [-1, -2, -3] =
     [-1, -2, -3, -2, -4, -6, -3, -6, -9] := by rfl
 
-  def distinct_pairs (l : List α) : List (α × α) :=
-    match l with
+  def distinct_pairs : List α -> List (α × α)
     | [] => []
     | x :: t => foldr (fun y a => (x, y) :: a) (distinct_pairs t) t
 
@@ -49,10 +47,7 @@ namespace List
 -/
 /- Attempt 1 w/ Int, no Int lemmas available! -/
 
-  #eval range_from 1 4
-  example : range_from 1 4 = [1, 2, 3, 4] := by
-    sorry
-    -- simp [range_from]
+  example : range_from 1 4 = [1, 2, 3, 4] := by rfl
 
   /- A different API that computes the same function, with termination proof! -/
   def range_offset (i : Nat) : Nat → List Nat
@@ -65,6 +60,14 @@ namespace List
 
   #eval range_offset 1 4
   example : range_offset 1 4 = [1, 2, 3, 4] := by rfl
+
+  /- A provably terminating version of `range_from` whose definitional equality
+     works out conveniently! -/
+  def range_from' (i j: Int) : List Int :=
+    if j < i then [] else map (fun x => Int.ofNat x + i) $ range_offset 0 (j-i+1).natAbs
+
+  example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
+  example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
 
   def non (p : α → Bool) (x: α) : Bool := not (p x)
   example : map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] := by rfl
