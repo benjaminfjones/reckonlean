@@ -19,6 +19,7 @@ inductive Formula a where
   | Forall (v : String) (p : Formula a)
   | Exists (v : String) (p : Formula a)
 
+#check Formula.Atom 0
 /-
 (*
  * General parsing of iterated infixes
@@ -238,34 +239,37 @@ let dest_imp fm =
 (* More fine grained destructors for Imp *)
 let antecedent fm = fst (dest_imp fm)
 let consequent fm = snd (dest_imp fm)
+-/
 
+/-
 (* ------------------------------------------------------------------------- *)
 (* Apply a function to the atoms, otherwise keeping structure.               *)
 (* ------------------------------------------------------------------------- *)
-
-let rec onatoms f fm =
-  match fm with
-  | Atom a -> f a
-  | Not p -> Not (onatoms f p)
-  | And (p, q) -> And (onatoms f p, onatoms f q)
-  | Or (p, q) -> Or (onatoms f p, onatoms f q)
-  | Imp (p, q) -> Imp (onatoms f p, onatoms f q)
-  | Iff (p, q) -> Iff (onatoms f p, onatoms f q)
-  | Forall (x, p) -> Forall (x, onatoms f p)
-  | Exists (x, p) -> Exists (x, onatoms f p)
-  | _ -> fm
-
-(* Formula analog of list iterator "iList.tlist" *)
-let rec overatoms f fm b =
-  match fm with
-  | Atom a -> f a b
-  | Not p -> overatoms f p b
-  | And (p, q) | Or (p, q) | Imp (p, q) | Iff (p, q) ->
-      overatoms f p (overatoms f q b)
-  | Forall (_, p) | Exists (_, p) -> overatoms f p b
-  | _ -> b
-
-(* Special case of a union of the results of a function over the atoms *)
-let atom_union f fm = setify (overatoms (fun h t -> f h @ t) fm [])
-let atoms fm = atom_union (fun a -> [ a ]) fm
 -/
+
+def onatoms (f : α → Formula α) : Formula α → Formula α
+  | Formula.Atom x => f x
+  | Formula.Not p => Formula.Not (onatoms f p)
+  | Formula.And p q => Formula.And (onatoms f p) (onatoms f q)
+  | Formula.Or p q => Formula.Or (onatoms f p) (onatoms f q)
+  | Formula.Imp p q => Formula.Imp (onatoms f p) (onatoms f q)
+  | Formula.Iff p q => Formula.Iff (onatoms f p) (onatoms f q)
+  | Formula.Forall x p => Formula.Forall x (onatoms f p)
+  | Formula.Exists x p => Formula.Exists x (onatoms f p)
+  | p => p
+
+def overatoms (f : α → β → β) (fm : Formula α) (b : β) : β :=
+  match fm with
+  | Formula.Atom a => f a b
+  | Formula.Not p => overatoms f p b
+  | Formula.And p q | Formula.Or p q | Formula.Imp p q | Formula.Iff p q =>
+      overatoms f p (overatoms f q b)
+  | Formula.Forall _ p | Formula.Exists _ p => overatoms f p b
+  | _ => b
+
+/- TODO: add list sets -/
+/-
+def atom_union f fm := setify (overatoms (fun h t => f h @ t) fm [])
+def atoms fm := atom_union (fun a => [ a ]) fm
+-/
+
