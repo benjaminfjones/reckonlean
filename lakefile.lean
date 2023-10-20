@@ -1,7 +1,7 @@
 import Lake
 open Lake DSL
 
-package «reckoning-lean» {
+package «reckonlean» {
   -- add package configuration options here
 }
 
@@ -10,6 +10,6 @@ lean_lib «ReckoningLean» {
 }
 
 @[default_target]
-lean_exe «reckoning-lean» {
+lean_exe «reckonlean» {
   root := `Main
 }
