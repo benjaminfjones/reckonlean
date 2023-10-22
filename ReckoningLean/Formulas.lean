@@ -1,6 +1,6 @@
 /-
 =========================================================================
-Polymorphic type of formulas with parser and printer.                    
+Polymorphic type of formulas with parser and printer.
 =========================================================================
 -/
 
@@ -72,7 +72,7 @@ Unsed for now
 
 /-
 -------------------------------------------------------------------------
-Other general parsing combinators.                                       
+Other general parsing combinators.
 -------------------------------------------------------------------------
 -/
 
@@ -151,91 +151,101 @@ partial def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : pars
 end
 
 /-
-/-
 -------------------------------------------------------------------------
-Printing of formulas, parametrized by atom printer.                      
+Printing of formulas, parametrized by atom printer.
 -------------------------------------------------------------------------
 -/
 
-let bracket p n f x y =
-  if p then print_string "(" else ();
-  Format.open_box n;
-  f x y;
-  Format.close_box ();
-  if p then print_string ")" else ()
+def bracket_binary (p : Bool) (f: Formula α → Formula α → String) (x y: Formula α) :=
+  let opener := if p then "(" else ""
+  let middle := f x y
+  let closer := if p then ")" else ""
+  s!"{opener}{middle}{closer}"
 
-let rec strip_quant fm =
+def bracket_unary (p : Bool) (f: Formula α → String) x :=
+  let opener := if p then "(" else ""
+  let middle := f x
+  let closer := if p then ")" else ""
+  s!"{opener}{middle}{closer}"
+
+def bracket_str (p : Bool) (f: String → String) x :=
+  let opener := if p then "(" else ""
+  let middle := f x
+  let closer := if p then ")" else ""
+  s!"{opener}{middle}{closer}"
+
+def strip_quant {α : Type} (fm : Formula α) : List String × Formula α :=
   match fm with
-  | Forall (x, (Forall (_y, _p) as yp)) | Exists (x, (Exists (_y, _p) as yp)) ->
-      let xs, q = strip_quant yp in
+  | Formula.Forall x yp@(Formula.Forall _y _p) | Formula.Exists x yp@(Formula.Exists _y _p) =>
+      let ⟨xs, q⟩ := strip_quant yp
       (x :: xs, q)
-  | Forall (x, p) | Exists (x, p) -> ([ x ], p)
-  | _ -> ([], fm)
+  | Formula.Forall x p | Formula.Exists x p => ([ x ], p)
+  | _ => ([], fm)
 
-Print a formula given a (precision) printer for propositions
-let print_formula pfn =
-  let rec aux_print_formula pr fm =
+/- Print a formula given a (precision) printer for propositions -/
+  mutual
+  variable (α : Type)
+  partial def aux_print_formula (pr: Int) (pfn: Int → α → String) (fm: Formula α) : String :=
     match fm with
-    | False -> print_string "false"
-    | True -> print_string "true"
-    | Atom pargs -> pfn pr pargs
-    | Not p -> bracket (pr > 10) 1 (print_prefix 10) "~" p
-    | And (p, q) -> bracket (pr > 8) 0 (print_infix 8 "/\\") p q
-    | Or (p, q) -> bracket (pr > 6) 0 (print_infix 6 "\\/") p q
-    | Imp (p, q) -> bracket (pr > 4) 0 (print_infix 4 "==>") p q
-    | Iff (p, q) -> bracket (pr > 2) 0 (print_infix 2 "<=>") p q
-    | Forall (_x, _p) -> bracket (pr > 0) 2 print_qnt "forall" (strip_quant fm)
-    | Exists (_x, _p) -> bracket (pr > 0) 2 print_qnt "exists" (strip_quant fm)
-  and print_qnt qname (bvs, bod) =
-    print_string qname;
-    List.iter
-      (fun v ->
-        print_string " ";
-        print_string v)
-      bvs;
-    print_string ". ";
-    Format.print_space ();
-    Format.open_box 0;
-    aux_print_formula 0 bod;
-    Format.close_box ()
-  and print_prefix newpr sym p =
-    print_string sym;
-    aux_print_formula (newpr + 1) p
-  and print_infix newpr sym p q =
-    aux_print_formula (newpr + 1) p;
-    print_string (" " ^ sym);
-    Format.print_space ();
-    print_string " ";
-    aux_print_formula newpr q
-  in
-  aux_print_formula 0
+    | Formula.False => "false"
+    | Formula.True => "true"
+    | Formula.Atom pargs => pfn pr pargs
+    | Formula.Not p => bracket_unary (pr > 10) (print_prefix pfn 10 "~") p
+    | Formula.And p q => bracket_binary (pr > 8) (print_infix pfn 8 "/\\") p q
+    | Formula.Or p q => bracket_binary (pr > 6) (print_infix pfn 6 "\\/") p q
+    | Formula.Imp p q => bracket_binary (pr > 4) (print_infix pfn 4 "==>") p q
+    | Formula.Iff p q => bracket_binary (pr > 2) (print_infix pfn 2 "<=>") p q
+    | Formula.Forall _ _p =>
+        let opener := if (pr > 0) then "(" else ""
+        let middle := (print_qnt pfn "forall") (strip_quant fm)
+        let closer := if (pr > 0) then ")" else ""
+        s!"{opener}{middle}{closer}"
+    | Formula.Exists _ _p =>
+        let opener := if (pr > 0) then "(" else ""
+        let middle := (print_qnt pfn "exists") (strip_quant fm)
+        let closer := if (pr > 0) then ")" else ""
+        s!"{opener}{middle}{closer}"
 
-let print_qformula pfn fm =
-  Format.open_box 0;
-  print_string "<<";
-  Format.open_box 0;
-  print_formula pfn fm;
-  Format.close_box ();
-  print_string ">>";
-  Format.close_box ()
+  partial def print_qnt (pfn: Int → α → String) (qname: String) (vsf: List String × Formula α) : String :=
+    let vs_str := String.join $ List.map (fun v => s!" {v}") vsf.fst
+    let last := aux_print_formula 0 pfn vsf.snd
+    s!"{qname}{vs_str}. {last}"
+
+  partial def print_prefix (pfn: Int → α → String) (newpr : Int) (sym : String) (p : Formula α) : String :=
+    let s := aux_print_formula (newpr + 1) pfn p
+    s!"{sym}{s}"
+
+  partial def print_infix (pfn: Int → α → String) (newpr: Int) (sym: String) (p q: Formula α) : String :=
+    let op1 := aux_print_formula (newpr + 1) pfn p
+    let op2 := aux_print_formula newpr pfn q
+    s!"{op1} {sym} {op2}"
+end
+
+def print_formula (pfn: Int → α → String) : Formula α → String :=
+  aux_print_formula α 0 pfn
+
+def print_qformula (pfn: Int → α → String) (fm: Formula α): String :=
+  let fm_str := print_formula pfn fm
+  s!"<<{fm_str}>>"
 
 /-
 -------------------------------------------------------------------------
-Constructor Aliases                                                      
+Constructor Aliases
 -------------------------------------------------------------------------
 -/
 
-let mk_not p = Not p
-and mk_and p q = And (p, q)
-and mk_or p q = Or (p, q)
-and mk_imp p q = Imp (p, q)
-and mk_iff p q = Iff (p, q)
-and mk_forall x p = Forall (x, p)
-and mk_exists x p = Exists (x, p)
+def mk_not (p: Formula α) := Formula.Not p
+def mk_and (p q: Formula α) := Formula.And p q
+def mk_or (p q: Formula α) := Formula.Or p q
+def mk_imp (p q: Formula α) := Formula.Imp p q
+def mk_iff (p q: Formula α) := Formula.Iff p q
+def mk_forall (x: String) (p: Formula α) := Formula.Forall x p
+def mk_exists (x: String) (p: Formula α) := Formula.Exists x p
 
 /-
+/-
 -------------------------------------------------------------------------
-Destructors.                                                             
+Destructors.
 -------------------------------------------------------------------------
 -/
 
@@ -263,7 +273,7 @@ let consequent fm = snd (dest_imp fm)
 
 /-
 -------------------------------------------------------------------------
-Apply a function to the atoms, otherwise keeping structure.              
+Apply a function to the atoms, otherwise keeping structure.
 -------------------------------------------------------------------------
 -/
 
