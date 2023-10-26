@@ -5,7 +5,7 @@ package «reckonlean» {
   -- add package configuration options here
 }
 
-lean_lib «ReckoningLean» {
+lean_lib «ReckonLean» {
   -- add library configuration options here
 }
 

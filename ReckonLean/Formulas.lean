@@ -4,7 +4,7 @@ Polymorphic type of formulas with parser and printer.
 =========================================================================
 -/
 
-import ReckoningLean.Common
+import ReckonLean.Common
 
 /- First order logical formula paramterized by the type of propositions -/
 inductive Formula a where

@@ -1,6 +1,6 @@
-import ReckoningLean
-import ReckoningLean.Common
-import ReckoningLean.Formulas
+import ReckonLean
+import ReckonLean.Common
+import ReckonLean.Formulas
 
 
 def main : IO Unit :=
