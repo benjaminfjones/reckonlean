@@ -243,33 +243,44 @@ def mk_forall (x: String) (p: Formula α) := Formula.Forall x p
 def mk_exists (x: String) (p: Formula α) := Formula.Exists x p
 
 /-
-/-
 -------------------------------------------------------------------------
 Destructors.
 -------------------------------------------------------------------------
 -/
 
-let dest_iff fm =
-  match fm with Iff (p, q) -> (p, q) | _ -> failwith "dest_iff"
+namespace Dest
+variable (α : Type)
+def dest_iff : Formula α → Option (Formula α × Formula α)
+  | Formula.Iff p q => some (p, q)
+  | _ => none
 
-let dest_and fm =
-  match fm with And (p, q) -> (p, q) | _ -> failwith "dest_and"
+def dest_and : Formula α → Option (Formula α × Formula α)
+  | Formula.And p q => some (p, q)
+  | _ => none
 
-let rec conjuncts fm =
-  match fm with And (p, q) -> conjuncts p @ conjuncts q | _ -> [ fm ]
+def dest_or : Formula α → Option (Formula α × Formula α)
+  | Formula.Or p q => some (p, q)
+  | _ => none
 
-let dest_or fm = match fm with Or (p, q) -> (p, q) | _ -> failwith "dest_or"
+def dest_imp : Formula α → Option (Formula α × Formula α)
+  | Formula.Imp p q => some (p, q)
+  | _ => none
 
-let rec disjuncts fm =
-  match fm with Or (p, q) -> disjuncts p @ disjuncts q | _ -> [ fm ]
+def conjuncts : Formula α → List (Formula α)
+  | Formula.And p q => List.append (conjuncts p) (conjuncts q)
+  | fm => [ fm ]
 
-let dest_imp fm =
-  match fm with Imp (p, q) -> (p, q) | _ -> failwith "dest_imp"
+def disjuncts : Formula α → List (Formula α)
+  | Formula.Or p q => List.append (disjuncts p) (disjuncts q)
+  | fm => [ fm ]
 
 /- More fine grained destructors for Imp -/
-let antecedent fm = fst (dest_imp fm)
-let consequent fm = snd (dest_imp fm)
--/
+def antecedent {β : Type} (fm: Formula β) : Option (Formula β) :=
+  if let some pair := dest_imp β fm then pair.fst else none
+def consequent {β : Type} (fm: Formula β) : Option (Formula β) :=
+  if let some pair := dest_imp β fm then pair.snd else none
+
+end Dest
 
 /-
 -------------------------------------------------------------------------
@@ -302,4 +313,3 @@ def overatoms (f : α → β → β) (fm : Formula α) (b : β) : β :=
 def atom_union f fm := setify (overatoms (fun h t => f h @ t) fm [])
 def atoms fm := atom_union (fun a => [ a ]) fm
 -/
-
