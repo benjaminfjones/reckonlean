@@ -5,6 +5,7 @@ Polymorphic type of formulas with parser and printer.
 -/
 
 import ReckonLean.Common
+import ReckonLean.Parser
 
 /- First order logical formula paramterized by the type of propositions -/
 inductive Formula a where
@@ -32,10 +33,6 @@ General parsing of iterated infixes
   - sof : 'a formula -> 'b -- used in the opupdater to go from formulas to aggregates
   - subparser : parser -- parser of the infix operator's arguments
 -/
-
-abbrev token := String
-abbrev tokens := List token
-abbrev parser (a : Type) := tokens -> a × tokens
 
 /- Parse a general infix operator, parametrized on the syntax, the constructor
    and the type and construction of the final AST.
