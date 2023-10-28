@@ -4,8 +4,11 @@ Polymorphic type of formulas with parser and printer.
 =========================================================================
 -/
 
+import Init.Data.Format.Basic
 import ReckonLean.Common
 import ReckonLean.Parser
+
+open Std
 
 /- First order logical formula paramterized by the type of propositions -/
 inductive Formula a where
