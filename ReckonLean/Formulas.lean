@@ -32,13 +32,13 @@ protected def Formula.repr {α : Type} [Repr α] : Formula α → Nat → Format
     | Formula.Atom x, prec => reprPrec x prec
     | Formula.Not p, prec => Repr.addAppParen ("Not " ++ Formula.repr p max_prec) prec
     | Formula.And p q, prec =>
-        Repr.addAppParen ("And " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+        Repr.addAppParen ("And " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
     | Formula.Or p q, prec =>
-        Repr.addAppParen ("Or " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+        Repr.addAppParen ("Or " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
     | Formula.Imp p q, prec =>
-        Repr.addAppParen ("Imp " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+        Repr.addAppParen ("Imp " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
     | Formula.Iff p q, prec =>
-        Repr.addAppParen ("Iff " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+        Repr.addAppParen ("Iff " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
     | Formula.Forall x p, prec =>
         Repr.addAppParen (s!"Forall {x}. " ++ Formula.repr p max_prec) prec
     | Formula.Exists x p, prec =>
@@ -105,6 +105,12 @@ def papply (f : a -> b) (r : a × tokens) : b × tokens := (f r.fst, r.snd)
 /- Token `tok` is next in the input stream `inp` -/
 def nextin (inp : tokens) (tok : token) : Bool := inp != [] && List.head! inp == tok
 
+/-
+Parser a bracketed formula
+
+Note: currently, because of the panic! this will crash the compiler / lang server
+when a formula syntax error is encountered.
+-/
 def parse_bracketed [Inhabited a] (subparser : parser a) (bra_tok : token) : parser a :=
   fun inp =>
     let subres := subparser inp
