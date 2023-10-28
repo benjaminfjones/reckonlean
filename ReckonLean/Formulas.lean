@@ -25,6 +25,28 @@ inductive Formula a where
 
 instance [Inhabited α]: Inhabited (Formula α) where
   default := Formula.Atom default
+
+protected def Formula.repr {α : Type} [Repr α] : Formula α → Nat → Format
+    | Formula.False, _ => "false"
+    | Formula.True, _ => "true"
+    | Formula.Atom x, prec => reprPrec x prec
+    | Formula.Not p, prec => Repr.addAppParen ("Not " ++ Formula.repr p max_prec) prec
+    | Formula.And p q, prec =>
+        Repr.addAppParen ("And " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+    | Formula.Or p q, prec =>
+        Repr.addAppParen ("Or " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+    | Formula.Imp p q, prec =>
+        Repr.addAppParen ("Imp " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+    | Formula.Iff p q, prec =>
+        Repr.addAppParen ("Iff " ++ Formula.repr p max_prec ++ Formula.repr q max_prec) prec
+    | Formula.Forall x p, prec =>
+        Repr.addAppParen (s!"Forall {x}. " ++ Formula.repr p max_prec) prec
+    | Formula.Exists x p, prec =>
+        Repr.addAppParen (s!"Exists {x}. " ++ Formula.repr p max_prec) prec
+
+instance [Repr α] : Repr (Formula α) where
+  reprPrec := Formula.repr
+
 /-
 General parsing of iterated infixes
 
@@ -102,11 +124,16 @@ Parsing of formulas, parametrized by atom parser "pfn".
 -/
 
 abbrev ctx : Type := List String
-/- this is a cluster F -/
-abbrev iafn_type (α : Type) := (ctx → tokens → (Option ((Formula α) × tokens))) × (ctx → tokens → (Option (Formula α × tokens)))
+
+/-
+`iafn_type` is a pair of parsers designed to support both the language of propositional logic
+and fisrt order logic. The `fst` is the predicate parser (or something that panics), the `snd` is
+the atomic proposition parser.
+-/
+abbrev iafn_type (α : Type) := (ctx → parser (Option (Formula α))) × (ctx → parser (Option (Formula α)))
 
 mutual
-partial def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
+def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
   let ⟨ ifn, afn ⟩ := iafn
   fun inp =>
     match inp with
@@ -116,8 +143,8 @@ partial def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx)
     | "(" :: rest => (
         /- need to work around exceptions as control-flow -/
         match ifn vs inp with
-        | none => parse_bracketed (parse_formula iafn vs) ")" rest
-        | some r => r)
+        | (none, _) => parse_bracketed (parse_formula iafn vs) ")" rest
+        | (some r, toks) => (r, toks))
     | "~" :: rest =>
         papply (fun p => Formula.Not p) (parse_atomic_formula (ifn, afn) vs rest)
     | "forall" :: x :: rest =>
@@ -125,10 +152,10 @@ partial def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx)
     | "exists" :: x :: rest =>
         parse_quant iafn (x :: vs) (fun x p => Formula.Exists x p) x rest
     | _ => match afn vs inp with
-           | none => panic! "parser_atomic_formula"
-           | some r => r
+           | (none, _) => panic! "parser_atomic_formula"
+           | (some r, toks) => (r, toks)
 
-partial def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : String → Formula α → Formula α) (x : String) : parser (Formula α) :=
+def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : String → Formula α → Formula α) (x : String) : parser (Formula α) :=
   fun inp =>
   match inp with
   | [] => panic! "Body of quantified term expected"
@@ -138,7 +165,7 @@ partial def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : 
         (if y == "." then parse_formula iafn vs rest
          else parse_quant iafn (y :: vs) qcon y rest)
 
-partial def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
+def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
   parse_right_infix "<=>"
     (fun p q => Formula.Iff p q)
     (parse_right_infix "==>"
@@ -149,6 +176,13 @@ partial def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : pars
              (fun p q => Formula.And p q)
              (parse_atomic_formula iafn vs))))
 end
+termination_by
+  /- These are obviously bollocks -/
+  parse_formula _ c => 0
+  parse_quant _ c _ _ => 0
+  parse_atomic_formula _ c => 0
+decreasing_by
+  sorry
 
 /-
 -------------------------------------------------------------------------
