@@ -50,8 +50,10 @@ Examples
 /- round trip -/
 #eval print_prop_formula (<<"p /\\ q">>) == "<<p /\\ q>>"  -- true
 /- `rfl` won't close this for some reason, the LHS fails to evaluate fully
+set_option trace.profiler true
 example : print_prop_formula <<"p /\\ q">> = "<<p /\\ q>>" := by rfl
 -/
+
 #eval print_prop_formula <<"forall p. p \\/ q">> == "<<forall p. p \\/ q>>"  -- true
 #eval print_prop_formula << "forall p. (exists q. (p \\/ ~p) /\\ (p \\/ q))">> ==
    "<<forall p. exists q. (p \\/ ~p) /\\ (p \\/ q)>>"  -- true; different parentheses

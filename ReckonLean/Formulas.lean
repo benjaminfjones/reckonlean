@@ -328,6 +328,7 @@ Apply a function to the atoms, otherwise keeping structure.
 -------------------------------------------------------------------------
 -/
 
+/- Carry out a Formula transformation on the atoms -/
 def onatoms (f : α → Formula α) : Formula α → Formula α
   | Formula.Atom x => f x
   | Formula.Not p => Formula.Not (onatoms f p)
@@ -339,6 +340,7 @@ def onatoms (f : α → Formula α) : Formula α → Formula α
   | Formula.Exists x p => Formula.Exists x (onatoms f p)
   | p => p
 
+/- Fold a functions over a Formula tree -/
 def overatoms (f : α → β → β) (fm : Formula α) (b : β) : β :=
   match fm with
   | Formula.Atom a => f a b
@@ -348,8 +350,8 @@ def overatoms (f : α → β → β) (fm : Formula α) (b : β) : β :=
   | Formula.Forall _ p | Formula.Exists _ p => overatoms f p b
   | _ => b
 
-/- TODO: add list sets -/
-/-
-def atom_union f fm := setify (overatoms (fun h t => f h @ t) fm [])
-def atoms fm := atom_union (fun a => [ a ]) fm
--/
+open Set
+
+def atom_union {β : Type} [Ord β] [BEq β] (f: α → List β) (fm: Formula α) : List β :=
+  setify (overatoms (fun h t => f h ++ t) fm [])
+def atoms  {α : Type} [Ord α] [BEq α] (fm: Formula α) : List α := atom_union (fun a => [ a ]) fm
