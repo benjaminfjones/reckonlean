@@ -4,6 +4,7 @@ import ReckonLean.Formulas
 /- A type for atomic propositions -/
 structure Prp where
   name: String
+deriving BEq, Ord
 
 instance : Repr Prp where
   reprPrec prp _ := prp.name
@@ -35,9 +36,9 @@ syntax "<<" propf ">>" : term
 macro_rules
 | `(<<$s:str>>) => `(parse_prop_formula $s)
 
-#check <<"p /\\ q">>
-#eval  <<"p /\\ r">>
-#eval  <<"p /\\ (q \\/ (r ==> s))">>
+#check <<"p ∧ q">>
+#eval  <<"p ∧ r">>
+#eval  <<"p ∧ (q ∨ (r ==> s))">>
 
 /- Prop formula Printer -/
 def print_propvar (_prec: Int) (p: Prp) := p.name
@@ -48,15 +49,15 @@ Examples
 -/
 
 /- round trip -/
-#eval print_prop_formula (<<"p /\\ q">>) == "<<p /\\ q>>"  -- true
+#eval print_prop_formula (<<"p ∧ q">>) == "<<p ∧ q>>"  -- true
 /- `rfl` won't close this for some reason, the LHS fails to evaluate fully
 set_option trace.profiler true
 example : print_prop_formula <<"p /\\ q">> = "<<p /\\ q>>" := by rfl
 -/
 
-#eval print_prop_formula <<"forall p. p \\/ q">> == "<<forall p. p \\/ q>>"  -- true
-#eval print_prop_formula << "forall p. (exists q. (p \\/ ~p) /\\ (p \\/ q))">> ==
-   "<<forall p. exists q. (p \\/ ~p) /\\ (p \\/ q)>>"  -- true; different parentheses
+#eval print_prop_formula <<"forall p. p ∨ q">> == "<<forall p. p ∨ q>>"  -- true
+#eval print_prop_formula << "forall p. (exists q. (p ∨ ~p) ∧ (p ∨ q))">> ==
+   "<<forall p. exists q. (p ∨ ~p) ∧ (p ∨ q)>>"  -- true; different parentheses
 
 
 /- ------------------------------------------------------------------------- -/
@@ -91,12 +92,12 @@ def psimplify : Formula α → Formula α
   | fm => fm
 
 /- Imp (Not x) (Not y) -/
-#eval psimplify <<"(true ==> (x <=> false)) ==> ~(y \\/ false /\\ z)">>
+#eval psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">>
 /- <<~x ==> ~y>> -/
-#eval print_prop_formula (psimplify <<"(true ==> (x <=> false)) ==> ~(y \\/ false /\\ z)">>)
+#eval print_prop_formula (psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">>)
 
 /- <<true>> -/
-#eval print_prop_formula (psimplify <<"((x ==> y) ==> true) \\/ ~false">>)
+#eval print_prop_formula (psimplify <<"((x ==> y) ==> true) ∨ ~false">>)
 
 /- Useful predicates and transformations for literals -/
 def negative : Formula α → Bool | .Not _ => true | _ => false
@@ -119,7 +120,7 @@ where
     | .Not (.Imp p q) => .And (nnf_aux p) (nnf_aux (.Not q))
     | .Not (.Iff p q) =>
         .Or (.And (nnf_aux p) (nnf_aux (.Not q))) (.And (nnf_aux (.Not p)) (nnf_aux q))
-    | _ => fm
+    | f => f
 decreasing_by sorry  /- use (depth)-(min depth of .Not) ? -/
 
 /- Simple negation-pushing; does not eliminate Iff -/
@@ -158,3 +159,72 @@ def list_conj {α : Type} [Inhabited α] : List (Formula α) → Formula α
   | [] => .True | l => List.end_itlist mk_and l
 def list_disj {α : Type} [Inhabited α] : List (Formula α) → Formula α
   | [] => .False | l => List.end_itlist mk_or l
+
+namespace CNF
+/- ------------------------------------------------------------------------- -/
+/- Conjuctive Normal Form (CNF)                                              -/
+/- ------------------------------------------------------------------------- -/
+
+/- Compute a CNF representation, in set of sets form.contents
+
+   Note: the structure is almost exactly the same as `purednf` modulo swapping
+   And/Or by duality.
+
+   For example:
+
+   purecnf (p ∧ q) => union [[p]] [[q]]
+                     => [[p]; [q]]
+
+   purecnf (p ∨ q) => pure_distrib [[p]] [[q]]
+                     => setify (allpairs union [[p]] [[q]])
+                     => setify ([[p; q]])
+                     => [[p; q]]
+-/
+variable {α : Type} [Inhabited α] [Ord α] [BEq α]
+abbrev CNFFormula (α: Type) := List (List (Formula α))
+
+/- Distribute for the set of sets representation -/
+def pure_distrib (s1 s2: CNFFormula α) : CNFFormula α :=
+  Set.setify (List.all_pairs Set.union s1 s2)
+
+/-
+Determine if the disjunction of literals is trivial (a tautology), i.e.
+contains both p and ~p for some atomic prop p.
+-/
+def trivial (lits: List (Formula α)) : Bool :=
+  let (pos, neg) := List.partition positive lits
+  Set.intersect pos (List.map negate neg) != []
+
+def purecnf : Formula α → CNFFormula α
+  | .And p q => Set.union (purecnf p) (purecnf q)
+  | .Or p q => pure_distrib (purecnf p) (purecnf q)
+  | fm => [ [ fm ] ]
+
+def simpcnf : Formula α → CNFFormula α
+  | .False => [ [] ]
+  | .True => []
+  | fm =>
+      /- Filter out trivial conjuncts (i.e. ones that are tautologies) -/
+      let cjs := List.filter (fun dj => !(trivial dj) ) (purecnf (nnf fm))
+      /- Filter out subsumed conjuncts -/
+      let subsumed (c c': List (Formula α)) : Bool := Set.psubset c' c
+      let redundant c := Option.isNone (List.find? (subsumed c) cjs)
+      List.filter redundant cjs
+
+/- The ultimate evolution of CNF -/
+def cnf (fm: Formula α) : Formula α := list_conj (List.map list_disj (simpcnf fm))
+
+#eval psimplify <<"(p ∧ q) ∧ ~(r ∧ s)">>
+#eval nnf <<"(p ∧ q) ∧ ~(r ∧ s)">>
+#eval simpcnf <<"(p ∧ q) ∧ ~(r ∧ s)">> == [[<<"p">>], [<<"q">>], [<<"~r">>, <<"~s">>]]
+/-
+"<<p ∧ q ∧ (~r ∨ ~s)>>"
+-/
+#eval print_prop_formula (cnf <<"(p ∧ q) ∧ ~(r ∧ s)">>)
+
+/-
+[[p, q, r], [p, q, Not s], [p, s, Not q, Not r], [q, s, Not p, Not r], [r, Not
+p, Not q], [Not p, Not q, Not s]]
+-/
+#eval simpcnf <<"(p <=> q) <=> ~(r ==> s)">>
+end CNF
