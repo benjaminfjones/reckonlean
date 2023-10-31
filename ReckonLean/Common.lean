@@ -2,7 +2,7 @@
 /- composition `**` is backwards pipeline <| -/
 
 namespace List
-  /- TODO Do we actually need `end_itlist` ?-/
+  /- Like `foldl` but has no base case which is convenient in certain places -/
   def end_itlist [Inhabited α] (f: α → α → α) : List α → α
     | [] => panic! "end_itlist"
     | [x] => x
