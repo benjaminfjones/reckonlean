@@ -1,6 +1,9 @@
 /- `id` is builtin -/
 /- composition `**` is backwards pipeline <| -/
 
+def non (p : α → Bool) (x: α) : Bool := not (p x)
+example : List.map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] := by rfl
+
 namespace List
   /- Like `foldl` but has no base case which is convenient in certain places -/
   def end_itlist [Inhabited α] (f: α → α → α) : List α → α
@@ -68,9 +71,6 @@ namespace List
 
   example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
   example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
-
-  def non (p : α → Bool) (x: α) : Bool := not (p x)
-  example : map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] := by rfl
 
 end List
 
@@ -178,8 +178,29 @@ where
 #eval union [1,2,3] [4,5]  -- [1, 2, 3, 4, 5]
 #eval union [1,2,3] [1, 2, 3]  -- [1, 2, 3]
 
+def list_compare : List α → List α → Ordering
+    | [], [] => .eq
+    | [], _  => .lt
+    | _, [] => .gt
+    | h1 :: t1, h2 :: t2 =>
+      match compare h1 h2 with
+        | .lt => .lt
+        | .gt => .gt
+        | .eq => list_compare t1 t2
+
+instance {α : Type} [Ord α] : Ord (List α) where
+  compare := list_compare
+
+#eval compare [1,2,3] [1,2,3,4] == .lt  -- true
+#eval compare [1,2,3, 4] [1,2,3] == .lt  -- false
+#eval compare [1,2,3, 4] [1,2,3] == .gt  -- false
+#eval compare [1,2,3] [1,2,3] == .eq  -- false
+/-
+[[], [1, 2], [1, 5, 9], [2, 1], [3, 2, 1]]
+-/
+#eval sort [[1,2], [2,1], [], [3,2,1], [1,5,9]]
+
 /- Return a list of all subsets of given size. -/
-/- TODO: Need Ord (List α)
 def allsubsets (size: Int) (set: List α) : List (List α) :=
   let set := setify set
   if size <= 0 then [ [] ]
@@ -191,7 +212,7 @@ def allsubsets (size: Int) (set: List α) : List (List α) :=
           union
             (List.map (union [ s ]) (allsubsets (size - 1) rest))
             (allsubsets size rest))
--/
+decreasing_by sorry
 
 /-
 Setify the input lists and return their intersection.
