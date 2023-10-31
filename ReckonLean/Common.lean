@@ -149,15 +149,15 @@ decreasing_by
 #eval sort [1] == [1]  -- true
 
 /- Construct a set, represented as a canonical list -/
-def setify :=
-  let rec canonical (lis: List α) :=
+def setify (l: List α) : List α :=
+  if canonical l then l
+  else
+    uniq <| sort l
+where
+  canonical (lis: List α) :=
     match lis with
     | x :: rest@(y :: _) => compare x y == lt && canonical rest
     | _ => true
-  fun l =>
-    if canonical l then l
-    else
-      uniq <| sort l
 
 #eval setify [1, 3, 2, 1] == [1, 2, 3]  -- true
 
