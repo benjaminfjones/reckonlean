@@ -23,29 +23,105 @@ inductive Formula a where
   | Forall (v : String) (p : Formula a)
   | Exists (v : String) (p : Formula a)
 
+/- Ord instance that only works for literals NNF formulas -/
+def ord_formula [Ord α]: Formula α → Formula α → Ordering
+  | .False, .False => .eq
+  | .False, _ => .lt
+  | .True, .False => .gt
+  | .True, .True => .eq
+  | .True, _ => .lt
+  | .Atom _n, .False => .gt
+  | .Atom _n, .True => .gt
+  | .Atom n, .Atom m => compare n m
+  | .Atom _n, _ => .lt
+  | .Not _p, .False => .gt
+  | .Not _p, .True => .gt
+  | .Not _p, .Atom _ => .gt
+  | .Not p, .Not q => ord_formula p q
+  | .Not _p, _ => .lt
+  | .And _ _ , .False => .gt
+  | .And _ _ , .True => .gt
+  | .And _ _ , .Atom _ => .gt
+  | .And _ _, .Not _ => .gt
+  | .And p q, .And r s =>
+      match ord_formula p q with
+      | .lt => .lt
+      | .gt => .gt
+      | .eq => ord_formula r s
+  | .And _ _, _ => .lt
+  | .Or _ _ , .False => .gt
+  | .Or _ _ , .True => .gt
+  | .Or _ _ , .Atom _ => .gt
+  | .Or _ _, .Not _ => .gt
+  | .Or _ _, .And _ _ => .gt
+  | .Or p q, .Or r s =>
+      match ord_formula p q with
+      | .lt => .lt
+      | .gt => .gt
+      | .eq => ord_formula r s
+  | .Or _ _, _ => .lt
+  | .Imp _ _, _ => panic! "don't know how to compare Imp to ..."
+  | .Iff _ _, _ => panic! "don't know how to compare Iff to ..."
+  | .Forall _ _, _ => panic! "don't know how to compare Forall ..."
+  | .Exists _ _, _ => panic! "don't know how to compare Exists ..."
+decreasing_by sorry
+
+instance [Ord α] : Ord (Formula α) where
+  compare := ord_formula
+
+/- BEq instance that only works for NNF formulas -/
+def beq_formula [BEq α]: Formula α → Formula α → Bool
+  | .False, .False => true
+  | .False, _ => false
+  | .True, .True => true
+  | .True, _ => false
+  | .Atom n, .Atom m => BEq.beq n m
+  | .Atom _, _ => false
+  | .Not p, .Not q => beq_formula p q
+  | .Not _, _ => false
+  | .And p q, .And r s => beq_formula p r && beq_formula q s
+  | .And _ _, _ => false
+  | .Or p q, .Or r s => beq_formula p r && beq_formula q s
+  | .Or _ _, _ => false
+  | _, _ => panic! "don't know how to beq complicated formulas"
+
+instance [BEq α] : BEq (Formula α) where
+  beq := beq_formula
+
 instance [Inhabited α]: Inhabited (Formula α) where
   default := Formula.Atom default
 
 protected def Formula.repr {α : Type} [Repr α] : Formula α → Nat → Format
-    | Formula.False, _ => "false"
-    | Formula.True, _ => "true"
-    | Formula.Atom x, prec => reprPrec x prec
-    | Formula.Not p, prec => Repr.addAppParen ("Not " ++ Formula.repr p max_prec) prec
-    | Formula.And p q, prec =>
-        Repr.addAppParen ("And " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
-    | Formula.Or p q, prec =>
-        Repr.addAppParen ("Or " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
-    | Formula.Imp p q, prec =>
-        Repr.addAppParen ("Imp " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
-    | Formula.Iff p q, prec =>
-        Repr.addAppParen ("Iff " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
-    | Formula.Forall x p, prec =>
-        Repr.addAppParen (s!"Forall {x}. " ++ Formula.repr p max_prec) prec
-    | Formula.Exists x p, prec =>
-        Repr.addAppParen (s!"Exists {x}. " ++ Formula.repr p max_prec) prec
+  | Formula.False, _ => "false"
+  | Formula.True, _ => "true"
+  | Formula.Atom x, prec => reprPrec x prec
+  | Formula.Not p, prec => Repr.addAppParen ("Not " ++ Formula.repr p max_prec) prec
+  | Formula.And p q, prec =>
+      Repr.addAppParen ("And " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
+  | Formula.Or p q, prec =>
+      Repr.addAppParen ("Or " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
+  | Formula.Imp p q, prec =>
+      Repr.addAppParen ("Imp " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
+  | Formula.Iff p q, prec =>
+      Repr.addAppParen ("Iff " ++ Formula.repr p max_prec ++ " " ++ Formula.repr q max_prec) prec
+  | Formula.Forall x p, prec =>
+      Repr.addAppParen (s!"Forall {x}. " ++ Formula.repr p max_prec) prec
+  | Formula.Exists x p, prec =>
+      Repr.addAppParen (s!"Exists {x}. " ++ Formula.repr p max_prec) prec
 
 instance [Repr α] : Repr (Formula α) where
   reprPrec := Formula.repr
+
+/- Wow, really? -/
+/-
+instance [Repr α] : Ord (Formula α) where
+  compare f1 f2 := compare (Format.pretty (reprPrec f1 0)) (Format.pretty (reprPrec f2 0))
+
+#eval compare (Formula.False: Formula Nat) Formula.True == .lt
+#eval compare (Formula.True: Formula Nat) Formula.False == .gt
+#eval compare (Formula.Not (Formula.Atom "x"): Formula String) Formula.False == .lt
+#eval compare (Formula.Not (Formula.Atom "x"): Formula String) (Formula.Atom "y") == .gt
+-/
 
 /-
 General parsing of iterated infixes
@@ -176,9 +252,9 @@ def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Form
     (fun p q => Formula.Iff p q)
     (parse_right_infix "==>"
        (fun p q => Formula.Imp p q)
-       (parse_right_infix "\\/"
+       (parse_right_infix "∨"
           (fun p q => Formula.Or p q)
-          (parse_right_infix "/\\"
+          (parse_right_infix "∧"
              (fun p q => Formula.And p q)
              (parse_atomic_formula iafn vs))))
 end
@@ -231,8 +307,8 @@ def strip_quant {α : Type} (fm : Formula α) : List String × Formula α :=
     | Formula.True => "true"
     | Formula.Atom pargs => pfn pr pargs
     | Formula.Not p => bracket_unary (pr > 10) (print_prefix pfn 10 "~") p
-    | Formula.And p q => bracket_binary (pr > 8) (print_infix pfn 8 "/\\") p q
-    | Formula.Or p q => bracket_binary (pr > 6) (print_infix pfn 6 "\\/") p q
+    | Formula.And p q => bracket_binary (pr > 8) (print_infix pfn 8 "∧") p q
+    | Formula.Or p q => bracket_binary (pr > 6) (print_infix pfn 6 "∨") p q
     | Formula.Imp p q => bracket_binary (pr > 4) (print_infix pfn 4 "==>") p q
     | Formula.Iff p q => bracket_binary (pr > 2) (print_infix pfn 2 "<=>") p q
     | Formula.Forall _ _p =>

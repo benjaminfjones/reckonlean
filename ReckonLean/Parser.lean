@@ -16,7 +16,7 @@ def matches_ (parent_str : String) (char : Char) : Bool :=
 
 def space := matches_ " \t\r\n"
 def punctuation := matches_ "(){}[],"
-def symbolic := matches_ "~`!@#$%^&*-+:=|\\:;<>.?/"
+def symbolic := matches_ "~`!@#$%^&*-+:=|\\:;<>.?/∧∨"
 def numeric := matches_ "0123456789"
 def alphanumeric :=
   matches_ "abcdefghijklmnopqrstuvwxyz_'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -64,6 +64,7 @@ Examples
 -/
 
 #eval lex (String.toList "2*((var_1 + x') + 11)") == ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"]
+#eval lex (String.toList "p ∧ q")
 
 example : lex (String.toList "2*((var_1 + x') + 11)") =
   ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"] := by rfl
