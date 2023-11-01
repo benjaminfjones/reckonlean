@@ -227,4 +227,77 @@ def cnf (fm: Formula α) : Formula α := list_conj (List.map list_disj (simpcnf 
 p, Not q], [Not p, Not q, Not s]]
 -/
 #eval simpcnf <<"(p <=> q) <=> ~(r ==> s)">>
+
+
+/- ------------------------------------------------------------------------- -/
+/- Definitional Conjuctive Normal Form (Tseitin Transformation)              -/
+/- ------------------------------------------------------------------------- -/
+
+def freshprop (n: Int) : Formula Prp × Int := (.Atom ⟨s!"p_{n}" ⟩, n + 1)
+
+abbrev Defs := Unit  -- TODO: Func Prp (Formula Prp)
+structure CNFState where
+  formula : Formula Prp
+  defs : Defs
+  index : Int
+
+/-
+/-
+`defcnf_inner` and `defstep` are mutually recursive functions used in the
+state transformer loop that produces definitional CNF. The state being
+transformed is the triple (formula, definitions so far, fresh prop index)
+-/
+mutual
+def defcnf_inner (st: CNFState) :=
+  -- assumption: `fm` is in NENF form
+  match st.formula with
+  | .And p q => defstep mk_and p q trip
+  | .Or p q => defstep mk_or p q trip
+  | .Iff p q => defstep mk_iff p q trip
+  | _ => trip
+
+/- perform a definition Tseitin step -/
+def defstep op args st :=
+  let (p, q) := args
+  let st1 := defcnf_inner st
+  let st2 := defcnf_inner (q, defs1, n1)
+  let fm' := op fm1 fm2
+  let mlookup := (apply defs2 fm')
+  match mlookup with
+  | some v => CNFState {formula: fst v, defs: defs2, index: n2}
+  | none =>
+    let (v, n3) := freshprop n2 in
+    --(v, (v |-> (fm', Iff (v, fm'))) defs2, n3)
+    (v, () defs2, n3)
+end
+
+/-
+(* Helper function for finding the next unsed prop variable index.
+
+   It returns the max of `n` and the smallest non-negative integer `k` such
+   that `str` is `prefix ^ suffix`, `suffix` represents an int, and
+   `int_of_string suffix <= k`. `n` is the default
+*)
+let max_varindex prefix =
+  let m = String.length prefix in
+  fun str n ->
+    let l = String.length str in
+    if l <= m || String.sub str 0 m <> prefix then n
+    else
+      let s' = String.sub str m (l - m) in
+      if List.for_all numeric (explode s') then Int.max n (int_of_string s')
+      else n
+
+let mk_defcnf fn fm =
+  let fm' = nenf fm in
+  let n = 1 + overatoms (fun p n -> max_varindex "p_" (pname p) n) fm' 0 in
+  let fm'', defs, _ = fn (fm', undefined, n) in
+  let deflist = List.map (snd ** snd) (graph defs) in
+  unions (simpcnf fm'' :: List.map simpcnf deflist)
+
+let defcnf_sets fm = mk_defcnf defcnf_inner fm
+let defcnf fm = list_conj (List.map list_disj (defcnf_sets fm))
+
 end CNF
+-/
+-/
