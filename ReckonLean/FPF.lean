@@ -2,6 +2,18 @@
 ------------------------------------------------------------------------
 Polymorphic Finite Partial Functions
 ------------------------------------------------------------------------
+
+This module contains an implementation of polymorphic finite partial
+functions. They serve as the representation for valuations and substitions,
+among other things.
+
+The original implementation in the Handbook uses Patricia trees. The one here
+is based on the builtin `Lean.Data.HashMap` type. The main difference being
+that the Patricia tree representation is canonical, whereas the HashMap
+representation depends on insertion order.
+
+Extensional equality obviously works in both representations. It remains to see
+whether that performs well enough to substitute for structural equality.
 -/
 
 import Lean.Data.HashMap
@@ -22,10 +34,16 @@ structure Func (γ: Type) (δ: Type) [BEq γ] [Hashable γ] where
 variable {α: Type} [BEq α] [Hashable α]
 variable {β: Type}
 
+/-!
+The completely undefined function
+-/
 def empty : Func α β := {map := HashMap.empty}
+/-! Alias for empty -/
 def undefined : Func α β := empty
-def mapf (f: β → γ) (m: Func α β) : Func α γ := { map := HashMap.mapVals f m.map }
-def fold {δ : Type} (f : δ → α → β → δ) (init : δ) (m : Func α β) : δ := HashMap.fold f init m.map
+/-! Compose `func` with with a complete function on the range. -/
+def mapf (f: β → γ) (func: Func α β) : Func α γ := { map := HashMap.mapVals f func.map }
+/-! Fold over the graph of `func`-/
+def fold {δ : Type} (f : δ → α → β → δ) (init : δ) (func : Func α β) : δ := HashMap.fold f init func.map
 
 /- ------------------------------------------------------------------------- -/
 /- Mapping to sorted-list representation of the graph, domain and range.     -/
@@ -40,7 +58,9 @@ instance [Ord α] [Ord β]: Ord (α × β) where
 instance [BEq α] [BEq β]: BEq (α × β) where
   beq t1 t2 := BEq.beq t1.fst t2.fst && BEq.beq t1.snd t2.snd
 
-/- Graph of the function as a set of (domain, range) tuples -/
+/-!
+Graph of the function as a set of (domain, range) tuples
+-/
 def graph [Ord α] [BEq α] [Ord β] [BEq β] (f: Func α β) : List (α × β) :=
   Set.setify (fold (fun a x y => (x, y) :: a) [] f)
 def dom [Ord α] [BEq α] [Ord β] [BEq β] (f: Func α β) : List α :=
@@ -48,16 +68,27 @@ def dom [Ord α] [BEq α] [Ord β] [BEq β] (f: Func α β) : List α :=
 def ran [Ord α] [BEq α] [Ord β] [BEq β] (f: Func α β) : List β :=
   Set.setify (fold (fun a _x y => y :: a) [] f)
 
-/- Apply an FPF with default function in case the function isn't defined -/
+/-!
+Apply an FPF with default function in case the function isn't defined.
+-/
 def applyd (f: Func α β) (default: α → β) (x: α) : β :=
   match f.map.find? x with
   | some v => v
   | none => default x
 
+/-!
+Try to apply `f` to `x`
+-/
 def apply? (f: Func α β) (x: α) : Option β := f.map.find? x
 
+/-!
+Apply `f` to `x`; panic if `f` is not defined there.
+-/
 def apply! [Inhabited β] (f: Func α β) (x: α) : β := f.map.find! x
 
+/-!
+Is `f` defined at `x`?
+-/
 def defined (f: Func α β) (x: α) : Bool := f.map.contains x
 
 /-
@@ -66,10 +97,14 @@ to implement in the patricia tree representation.
 -/
 def undefine (f: Func α β) (x: α) : Func α β := ⟨ f.map.erase x ⟩
 
-/- Extend (or redefine) the function with a single domain, range pair. Aka `|->` -/
+/-!
+Extend (or redefine) the function with a single domain, range pair; Aka `|->`.
+
+For example `(x0 |-> y0) func` is the function mapping `x0` to `y0` and every
+`x' { x ∈ domain(func) | x != x0 }` to `func(x)`.
+-/
 def ins (x: α) (y: β) : Func α β → Func α β
   | f => { f with map := f.map.insert x y}
-
 infixr:100 " |-> " => ins
 
 #check (1 |-> 2) (empty : Func Nat Nat)
@@ -94,16 +129,28 @@ Example: [some 3, none, some 0]
                  ((1 |-> 1) ((2 |-> 6) ((3 |-> 0) empty)))
       [apply? f 1, apply? f 2, apply? f 3]
 
-/- Point function -/
+/-!
+Point function: `(x |=> y)` is the function that is only defined at `x` and
+maps `x` to `y`.
+-/
 def point (x: α) (y: β) : Func α β := (x |-> y) empty
 infixr:100 " |=> " => point
 
 #eval apply! (0 |=> 1) 0  -- 1
 #eval apply? (0 |=> 1) 1  -- none
 
+/-!
+Construct a function from a pair of domain, range lists. Zip is used which
+truncates the input lists if they are not of equal length.
+-/
 def from_lists (xs: List α) (ys: List β) : Func α β :=
   List.foldr (fun (x, y) f => (x |-> y) f) empty (List.zip xs ys)
 
+/-!
+Converts a function into an association list
+
+In general, this is different than `graph` whose output is a set.
+-/
 def to_list (f: Func α β) : List (α × β) := f.map.toList
 
 #eval apply! (from_lists [0] [1]) 0  -- 1
@@ -117,7 +164,9 @@ Same `combine` example as above:
                  (from_lists [1,2] [2,1])
                  (from_lists [1,2,3] [1,6,0]))
 
-/- Choose an arbitrary domain, range pair -/
+/-!
+Choose an arbitrary domain, range pair
+-/
 def choose [Inhabited α] [Inhabited β] (f: Func α β) : α × β :=
   match to_list f with
   | [] => panic! "choose: completely undefined function"
