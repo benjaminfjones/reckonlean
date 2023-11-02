@@ -19,3 +19,22 @@ namespace PolymorphicDeriving
   #eval compare (Bar.A : Bar Nat) (Bar.A) == .eq  -- true
 
 end PolymorphicDeriving
+
+namespace StringManip
+
+#check Substring
+
+def sliceString (str: String) (startPos stopPos: String.Pos) : Substring :=
+  {str, startPos, stopPos}
+
+def sliceString' (str: String) (startByte stopByte: Nat) : Substring :=
+  {str, startPos := {byteIdx := startByte}, stopPos := {byteIdx := stopByte}}
+
+#eval sliceString' "foobar" 0 1              -- "f".toSubstring
+#eval (sliceString' "foobar" 0 1).toString   -- "f"
+#eval (sliceString' "foobar" 0 10).toString  -- stops at the end: "foobar"
+
+end StringManip
+
+#check Nat.max
+#check String.toNat?
