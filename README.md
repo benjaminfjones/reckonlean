@@ -17,7 +17,11 @@ The original code accompanying Harrison's book is copyright (c) 2003-2007, John 
   - [x] port basics from `prop`
   - [x] implement `prop formula` parser as Lean syntax extension
   - [ ] port basic `prop` examples
-  - [ ] port `nnf` and `defcnf`
+  - [-] port cnf functions
+    - [x] `nnf`
+    - [x] basic cnf
+    - [x] implement poly finite functions with `HashMap`
+    - [ ] `defcnf` and `defcnf_opt`
   - [ ] port enough of `prop` to support `dp`, `dpll`, and `dpli`
 - [ ] port adder examples
 - [ ] port ramsey examples
