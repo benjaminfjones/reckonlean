@@ -252,6 +252,10 @@ def print_qformula (pfn: Int → α → String) (fm: Formula α): String :=
   let fm_str := print_formula pfn fm
   s!"<<{fm_str}>>"
 
+/-! A more concise printer for literals -/
+def print_qliteral (pfn: Int → α → String) (fm: Formula α): String :=
+  print_formula pfn fm
+
 /-
 -------------------------------------------------------------------------
 Constructor Aliases

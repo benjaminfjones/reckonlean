@@ -1,10 +1,11 @@
 import ReckonLean.Common
 import ReckonLean.Formulas
+import ReckonLean.FPF
 
 /- A type for atomic propositions -/
 structure Prp where
   name: String
-deriving BEq, Ord
+deriving BEq, Hashable, Ord
 
 instance : Repr Prp where
   reprPrec prp _ := prp.name
@@ -12,8 +13,10 @@ instance : Repr Prp where
 instance : Inhabited Prp where
   default := ⟨ "p" ⟩
 
+abbrev PFormula := Formula Prp
+
 /- Parsing of propositional formulas -/
-def parse_propvar (_vs: ctx) : parser (Option (Formula Prp)) :=
+def parse_propvar (_vs: ctx) : parser (Option (PFormula)) :=
   fun inp =>
     match inp with
     | p :: oinp => if p != "(" then (some (Formula.Atom ⟨ p ⟩), oinp) else (none, inp)
@@ -24,7 +27,7 @@ Parse a prop formula
 
 Note the `inp` parser just fails since we don't expect atomic predicates
 -/
-def parse_prop_formula (inp: String) : Formula Prp :=
+def parse_prop_formula (inp: String) : PFormula :=
   let ifn := fun (_ctx: ctx) (toks: tokens) => (none, toks)  /- unsed for prop logic -/
   make_parser (parse_formula (ifn, parse_propvar) []) inp
 
@@ -183,6 +186,10 @@ namespace CNF
 variable {α : Type} [Inhabited α] [Ord α] [BEq α]
 abbrev CNFFormula (α: Type) := List (List (Formula α))
 
+abbrev PCNFFormula := CNFFormula Prp
+
+def print_cnf_formula_sets := List.map (List.map (print_qliteral print_propvar))
+
 /- Distribute for the set of sets representation -/
 def pure_distrib (s1 s2: CNFFormula α) : CNFFormula α :=
   Set.setify (List.all_pairs Set.union s1 s2)
@@ -214,6 +221,92 @@ def simpcnf : Formula α → CNFFormula α
 /- The ultimate evolution of CNF -/
 def cnf (fm: Formula α) : Formula α := list_conj (List.map list_disj (simpcnf fm))
 
+
+/- ------------------------------------------------------------------------- -/
+/- Definitional Conjuctive Normal Form (Tseitin Transformation)              -/
+/- ------------------------------------------------------------------------- -/
+
+def freshprop (n: Nat) : PFormula × Nat := (.Atom ⟨s!"p_{n}" ⟩, n + 1)
+
+open FPF
+structure CNFState where
+  formula : PFormula
+  defs : Func PFormula (PFormula × PFormula)
+  index : Nat
+
+/-
+`defcnf_inner` and `defstep` are mutually recursive functions used in the
+state transformer loop that produces definitional CNF. The state being
+transformed is the triple (formula, definitions so far, fresh prop index)
+-/
+
+/-!
+Match the top-level connective and use `defstep` to perform the
+transform.
+
+`defstep` performs a definition Tseitin step.
+
+The transformation is applied to the args sequentially and then
+to the parent formula. If the parent has already been substituted for in
+a previous step, it's substitution is reused.
+-/
+def defcnf_inner (st: CNFState) : CNFState :=
+  -- assumption: `fm` is in NENF form
+  match st.formula with
+  | .And p q => defstep mk_and p q st
+  | .Or p q => defstep mk_or p q st
+  | .Iff p q => defstep mk_iff p q st
+  | _ => st
+where
+  defstep (op : PFormula → PFormula → PFormula) (arg1 arg2: PFormula) (st: CNFState) : CNFState :=
+    let st1 := defcnf_inner {st with formula := arg1}
+    let st2 := defcnf_inner {st1 with formula := arg2}
+    let fm' := op st1.formula st2.formula
+    let mlookup := apply? st2.defs fm'
+    match mlookup with
+    | some v => {st2 with formula := v.fst}
+    | none =>
+      let (v, n3) := freshprop st2.index
+      {formula := v, defs := (v |-> (fm', Formula.Iff v fm')) st2.defs, index := n3}
+  decreasing_by sorry
+
+/-
+Helper function for finding the next unsed prop variable index.
+
+It returns the max of `n` and the smallest non-negative integer `k` such
+that `str` is `prefix ^ suffix`, `suffix` represents an int, and
+`int_of_string suffix <= k`. `n` is the default
+-/
+def max_varindex (pfx str: String) (n: Nat): Nat :=
+  let m := pfx.length
+  let l := str.length
+  if l <= m || String.copySlice str 0 m != pfx then n
+  else
+    let s' := String.copySlice str m l
+    if List.all s'.toList numeric then Nat.max n (String.toNat! s')
+    else n
+
+#eval max_varindex "p" "p5" 4  -- 5
+#eval max_varindex "p" "p5" 6  -- 6
+#eval max_varindex "q" "p5" 8  -- 8
+#eval max_varindex "q" "foobar" 0  -- 0
+
+def mk_defcnf (fn: CNFState → CNFState) (fm: PFormula) : PCNFFormula :=
+  let fm' := nenf fm
+  let n := 1 + overatoms (fun p n => max_varindex "p_" p.name n) fm' 0
+  let st' := fn {formula := fm', defs := undefined, index := n}
+  let deflist := List.map (fun tt => tt.snd.snd ) (graph st'.defs)
+  Set.unions (simpcnf st'.formula :: List.map simpcnf deflist)
+
+def defcnf_sets (fm: PFormula) : PCNFFormula := mk_defcnf defcnf_inner fm
+def defcnf (fm: PFormula) : PFormula := list_conj (List.map list_disj (defcnf_sets fm))
+
+end CNF
+
+namespace Examples
+
+open CNF
+
 #eval psimplify <<"(p ∧ q) ∧ ~(r ∧ s)">>
 #eval nnf <<"(p ∧ q) ∧ ~(r ∧ s)">>
 #eval simpcnf <<"(p ∧ q) ∧ ~(r ∧ s)">> == [[<<"p">>], [<<"q">>], [<<"~r">>, <<"~s">>]]
@@ -223,81 +316,107 @@ def cnf (fm: Formula α) : Formula α := list_conj (List.map list_disj (simpcnf 
 #eval print_prop_formula (cnf <<"(p ∧ q) ∧ ~(r ∧ s)">>)
 
 /-
+Tseitin transformation of Iff results in 11 logical connectives:
+
+"<<(p ∨ q ∨ r) ∧ (p ∨ ~q ∨ ~r) ∧ (q ∨ ~p ∨ ~r) ∧ (r ∨ ~p ∨ ~q)>>"
+-/
+#eval print_prop_formula (cnf <<"(p <=> (q <=> r))">>)
+
+/-
 [[p, q, r], [p, q, Not s], [p, s, Not q, Not r], [q, s, Not p, Not r], [r, Not
 p, Not q], [Not p, Not q, Not s]]
 -/
 #eval simpcnf <<"(p <=> q) <=> ~(r ==> s)">>
 
+/- --------------------------------------------------------------- -/
+/- Example 1: running example in the Handbook                      -/
+/- --------------------------------------------------------------- -/
+def ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
+/-
+"<<(p ∨ q) ∧ (p ∨ r) ∧ (~p ∨ ~r)>>"
+-/
+#eval print_prop_formula (cnf ex1)
+/-
+"<<(p ∨ p_1 ∨ ~p_2) ∧ (p ∨ p_3) ∧ (p_1 ∨ ~q ∨ ~r) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_4) ∧ (p_3 ∨ r) ∧ (p_3 ∨ ~p_4) ∧ p_4 ∧ (p_4 ∨ ~p_2 ∨ ~p_3) ∧ (q ∨ ~p_1) ∧ (r ∨ ~p_1) ∧ (~p ∨ ~p_3 ∨ ~r)>>"
+-/
+#eval print_prop_formula (defcnf ex1)
+/-
+[["p", "p_1", "~p_2"],
+ ["p", "p_3"],
+ ["p_1", "~q", "~r"],
+ ["p_2", "~p"],
+ ["p_2", "~p_1"],
+ ["p_2", "~p_4"],
+ ["p_3", "r"],
+ ["p_3", "~p_4"],
+ ["p_4"],
+ ["p_4", "~p_2", "~p_3"],
+ ["q", "~p_1"],
+ ["r", "~p_1"],
+ ["~p", "~p_3", "~r"]]
 
-/- ------------------------------------------------------------------------- -/
-/- Definitional Conjuctive Normal Form (Tseitin Transformation)              -/
-/- ------------------------------------------------------------------------- -/
+-/
+#eval print_cnf_formula_sets (defcnf_sets ex1)
 
-def freshprop (n: Int) : Formula Prp × Int := (.Atom ⟨s!"p_{n}" ⟩, n + 1)
-
-abbrev Defs := Unit  -- TODO: Func Prp (Formula Prp)
-structure CNFState where
-  formula : Formula Prp
-  defs : Defs
-  index : Int
+/- --------------------------------------------------------------- -/
+/- Example 2: already in CNF, blows up to 13 clauses in defcnf     -/
+/- --------------------------------------------------------------- -/
+def ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
 
 /-
-/-
-`defcnf_inner` and `defstep` are mutually recursive functions used in the
-state transformer loop that produces definitional CNF. The state being
-transformed is the triple (formula, definitions so far, fresh prop index)
+"<<(p ∨ q ∨ r) ∧ (~p ∨ ~r)>>"
 -/
-mutual
-def defcnf_inner (st: CNFState) :=
-  -- assumption: `fm` is in NENF form
-  match st.formula with
-  | .And p q => defstep mk_and p q trip
-  | .Or p q => defstep mk_or p q trip
-  | .Iff p q => defstep mk_iff p q trip
-  | _ => trip
-
-/- perform a definition Tseitin step -/
-def defstep op args st :=
-  let (p, q) := args
-  let st1 := defcnf_inner st
-  let st2 := defcnf_inner (q, defs1, n1)
-  let fm' := op fm1 fm2
-  let mlookup := (apply defs2 fm')
-  match mlookup with
-  | some v => CNFState {formula: fst v, defs: defs2, index: n2}
-  | none =>
-    let (v, n3) := freshprop n2 in
-    --(v, (v |-> (fm', Iff (v, fm'))) defs2, n3)
-    (v, () defs2, n3)
-end
+#eval print_prop_formula (cnf ex2)
 
 /-
-(* Helper function for finding the next unsed prop variable index.
-
-   It returns the max of `n` and the smallest non-negative integer `k` such
-   that `str` is `prefix ^ suffix`, `suffix` represents an int, and
-   `int_of_string suffix <= k`. `n` is the default
-*)
-let max_varindex prefix =
-  let m = String.length prefix in
-  fun str n ->
-    let l = String.length str in
-    if l <= m || String.sub str 0 m <> prefix then n
-    else
-      let s' = String.sub str m (l - m) in
-      if List.for_all numeric (explode s') then Int.max n (int_of_string s')
-      else n
-
-let mk_defcnf fn fm =
-  let fm' = nenf fm in
-  let n = 1 + overatoms (fun p n -> max_varindex "p_" (pname p) n) fm' 0 in
-  let fm'', defs, _ = fn (fm', undefined, n) in
-  let deflist = List.map (snd ** snd) (graph defs) in
-  unions (simpcnf fm'' :: List.map simpcnf deflist)
-
-let defcnf_sets fm = mk_defcnf defcnf_inner fm
-let defcnf fm = list_conj (List.map list_disj (defcnf_sets fm))
-
-end CNF
+"<<(p ∨ p_1 ∨ ~p_2) ∧ (p ∨ p_3) ∧ (p_1 ∨ ~q) ∧ (p_1 ∨ ~r) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_4) ∧ (p_3 ∨ r) ∧ (p_3 ∨ ~p_4) ∧ p_4 ∧ (p_4 ∨ ~p_2 ∨ ~p_3) ∧ (q ∨ r ∨ ~p_1) ∧ (~p ∨ ~p_3 ∨ ~r)>>"
 -/
+#eval print_prop_formula (defcnf ex2)
+
+/-
+[["p", "p_1", "~p_2"],
+ ["p", "p_3"],
+ ["p_1", "~q"],
+ ["p_1", "~r"],
+ ["p_2", "~p"],
+ ["p_2", "~p_1"],
+ ["p_2", "~p_4"],
+ ["p_3", "r"],
+ ["p_3", "~p_4"],
+ ["p_4"],
+ ["p_4", "~p_2", "~p_3"],
+ ["q", "r", "~p_1"],
+ ["~p", "~p_3", "~r"]]
 -/
+#eval print_cnf_formula_sets (defcnf_sets ex2)
+
+/- --------------------------------------------------------------- -/
+/- Example 3: 3-clause basic cnf, blows up to 10 clauses in defcnf -/
+/- --------------------------------------------------------------- -/
+def ex3 := <<"(p ∨ (q ∧ ~r)) ∧ s">>
+
+/-
+"<<(p ∨ q) ∧ (p ∨ ~r) ∧ s>>"
+-/
+#eval print_prop_formula (cnf ex3)
+
+/-
+"<<(p ∨ p_1 ∨ ~p_2) ∧ (p_1 ∨ r ∨ ~q) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_3) ∧ p_3 ∧ (p_3 ∨ ~p_2 ∨ ~s) ∧ (q ∨ ~p_1) ∧ (s ∨ ~p_3) ∧ (~p_1 ∨ ~r)>>"
+-/
+#eval print_prop_formula (defcnf ex3)
+
+/-
+[["p", "p_1", "~p_2"],
+ ["p_1", "r", "~q"],
+ ["p_2", "~p"],
+ ["p_2", "~p_1"],
+ ["p_2", "~p_3"],
+ ["p_3"],
+ ["p_3", "~p_2", "~s"],
+ ["q", "~p_1"],
+ ["s", "~p_3"],
+ ["~p_1", "~r"]]
+-/
+#eval print_cnf_formula_sets (defcnf_sets ex3)
+
+end Examples
