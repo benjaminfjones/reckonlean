@@ -22,7 +22,7 @@ inductive Formula (a: Type) where
   | Iff (p q : Formula a)
   | Forall (v : String) (p : Formula a)
   | Exists (v : String) (p : Formula a)
-deriving Repr, Ord, BEq, Inhabited
+deriving BEq, Hashable, Inhabited, Ord, Repr
 
 #eval (default: Formula String)  -- Formula.False
 #eval Formula.Atom "Adam"  -- Formula.Atom "Adam"
