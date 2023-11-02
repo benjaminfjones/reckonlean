@@ -4,6 +4,16 @@
 def non (p : α → Bool) (x: α) : Bool := not (p x)
 example : List.map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] := by rfl
 
+namespace String
+
+  def sliceString (str: String) (startByte stopByte: Nat) : Substring :=
+    {str, startPos := {byteIdx := startByte}, stopPos := {byteIdx := stopByte}}
+
+  def copySlice (str: String) (startByte stopByte: Nat) : String :=
+    (sliceString str startByte stopByte).toString
+
+end String
+
 namespace List
   /- Like `foldl` but has no base case which is convenient in certain places -/
   def end_itlist [Inhabited α] (f: α → α → α) : List α → α
