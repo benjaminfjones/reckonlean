@@ -13,3 +13,5 @@ lean_lib «ReckonLean» {
 lean_exe «reckonlean» {
   root := `Main
 }
+
+require std from git "https://github.com/leanprover/std4" @ "main"

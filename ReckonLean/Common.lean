@@ -1,5 +1,4 @@
-/- `id` is builtin -/
-/- composition `**` is backwards pipeline <| -/
+import Std.Tactic.GuardExpr  -- provides #guard
 
 def non (p : α → Bool) (x: α) : Bool := not (p x)
 example : List.map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] := by rfl
@@ -133,9 +132,9 @@ decreasing_by
   simp_wf
   sorry
 
-#eval merge [] [1,2] == [1, 2]  -- true
-#eval merge [5] [1,2] == [1, 2, 5]  -- true
-#eval merge [1,2] [1,3] == [1, 1, 2, 3]  -- true
+#guard merge [] [1,2] == [1, 2]  -- true
+#guard merge [5] [1,2] == [1, 2, 5]  -- true
+#guard merge [1,2] [1,3] == [1, 1, 2, 3]
 
 
 /- Bottom-up mergesort -/
@@ -154,9 +153,9 @@ decreasing_by
   simp_wf
   sorry
 
-#eval sort [4, 3, 2, 1] == [1, 2, 3, 4]  -- true
-#eval sort [1, 3, 2, 1] == [1, 1, 2, 3]  -- true
-#eval sort [1] == [1]  -- true
+#guard sort [4, 3, 2, 1] == [1, 2, 3, 4]
+#guard sort [1, 3, 2, 1] == [1, 1, 2, 3]
+#guard sort [1] == [1]
 
 /- Construct a set, represented as a canonical list -/
 def setify (l: List α) : List α :=
@@ -169,7 +168,7 @@ where
     | x :: rest@(y :: _) => compare x y == lt && canonical rest
     | _ => true
 
-#eval setify [1, 3, 2, 1] == [1, 2, 3]  -- true
+#guard setify [1, 3, 2, 1] == [1, 2, 3]  -- true
 
 /- Construct the union of two lists, as a canonical set -/
 def union : List α → List α → List α
@@ -185,8 +184,8 @@ where
         else h2 :: aux_union l1 t2
   decreasing_by sorry  -- same as the proof for `intersect.aux`
 
-#eval union [1,2,3] [4,5]  -- [1, 2, 3, 4, 5]
-#eval union [1,2,3] [1, 2, 3]  -- [1, 2, 3]
+#guard union [1,2,3] [4,5] == [1, 2, 3, 4, 5]
+#guard union [1,2,3] [1, 2, 3] == [1, 2, 3]
 
 def list_compare : List α → List α → Ordering
     | [], [] => .eq
@@ -201,14 +200,11 @@ def list_compare : List α → List α → Ordering
 instance {α : Type} [Ord α] : Ord (List α) where
   compare := list_compare
 
-#eval compare [1,2,3] [1,2,3,4] == .lt  -- true
-#eval compare [1,2,3, 4] [1,2,3] == .lt  -- false
-#eval compare [1,2,3, 4] [1,2,3] == .gt  -- false
-#eval compare [1,2,3] [1,2,3] == .eq  -- false
-/-
-[[], [1, 2], [1, 5, 9], [2, 1], [3, 2, 1]]
--/
-#eval sort [[1,2], [2,1], [], [3,2,1], [1,5,9]]
+#guard compare [1,2,3] [1,2,3,4] == .lt
+#guard compare [1,2,3,4] [1,2,3] == .gt
+#guard compare [1,2,3,4] [1,2,3] == .gt
+#guard compare [1,2,3] [1,2,3] == .eq
+#guard sort [[1,2], [2,1], [], [3,2,1], [1,5,9]] == [[], [1, 2], [1, 5, 9], [2, 1], [3, 2, 1]]
 
 /- Return a list of all subsets of given size. -/
 def allsubsets (size: Int) (set: List α) : List (List α) :=
@@ -260,9 +256,9 @@ where
        `decreasing_by` is then solved by assumption -/
     simp_all
 
-#eval intersect [1,2,3] [4,5]     -- []
-#eval intersect [1,2,3] [3, 4,5]  -- [3]
-#eval union [1,2,3] [1, 2, 3]     -- [1, 2, 3]
+#guard intersect [1,2,3] [4,5] == []
+#guard intersect [1,2,3] [3, 4,5] == [3]
+#guard union [1,2,3] [1, 2, 3] == [1, 2, 3]
 
 /- Remove a set from another -/
 def subtract : List α → List α → List α
@@ -307,7 +303,7 @@ where
 
 def unions (s: List (List α)) : List α := setify (List.foldl List.append [] s)
 
-#eval unions [[1,2,3], [4,5,6], [1,5,8]] == [1,2,3,4,5,6,8]  -- true
+#guard unions [[1,2,3], [4,5,6], [1,5,8]] == [1,2,3,4,5,6,8]
 
 def set_image {β: Type} [Ord β] [BEq β] (f: α → β) (s: List α) : List β :=
   setify (List.map f s)

@@ -1,4 +1,12 @@
 {"version": 6,
  "packagesDir": "lake-packages",
- "packages": [],
- "name": "«reckoning-lean»"}
+ "packages":
+ [{"git":
+   {"url": "https://github.com/leanprover/std4",
+    "subDir?": null,
+    "rev": "9bfbd2a12ee9cf2e159a8a6b4d1ef6c149728f66",
+    "opts": {},
+    "name": "std",
+    "inputRev?": "main",
+    "inherited": false}}],
+ "name": "reckonlean"}
