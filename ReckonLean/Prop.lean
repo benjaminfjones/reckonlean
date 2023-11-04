@@ -9,6 +9,8 @@ structure Prp where
   name: String
 deriving BEq, Hashable, Ord
 
+def prp := Prp.mk
+
 instance : Repr Prp where
   reprPrec prp _ := prp.name
 
@@ -52,17 +54,17 @@ macro_rules
           (Formula.Atom ⟨"s"⟩)))
 
 /- Prop formula Printer -/
-def print_propvar (_prec: Int) (p: Prp) := p.name
-def print_prop_formula := print_qformula print_propvar
+def print_prp (_prec: Int) (p: Prp) := p.name
+def print_pf := print_qformula print_prp
 
 /-
 Examples
 -/
 
 /- round trip -/
-#guard print_prop_formula (<<"p ∧ q">>) == "<<p ∧ q>>"
-#guard print_prop_formula <<"forall p. p ∨ q">> == "<<forall p. p ∨ q>>"
-#guard print_prop_formula << "forall p. (exists q. (p ∨ ~p) ∧ (p ∨ q))">> ==
+#guard print_pf (<<"p ∧ q">>) == "<<p ∧ q>>"
+#guard print_pf <<"forall p. p ∨ q">> == "<<forall p. p ∨ q>>"
+#guard print_pf << "forall p. (exists q. (p ∨ ~p) ∧ (p ∨ q))">> ==
    "<<forall p. exists q. (p ∨ ~p) ∧ (p ∨ q)>>"  -- true; different parentheses
 
 
@@ -100,11 +102,11 @@ def psimplify : Formula α → Formula α
 #guard psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">> ==
   .Imp (.Not (.Atom ⟨ "x" ⟩ )) (.Not (.Atom ⟨ "y" ⟩ ))
 
-#guard print_prop_formula (psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">>) ==
+#guard print_pf (psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">>) ==
   "<<~x ==> ~y>>"
 
 
-#guard print_prop_formula (psimplify <<"((x ==> y) ==> true) ∨ ~false">>) == "<<true>>"
+#guard print_pf (psimplify <<"((x ==> y) ==> true) ∨ ~false">>) == "<<true>>"
 
 /- Useful predicates and transformations for literals -/
 def negative : Formula α → Bool | .Not _ => true | _ => false
@@ -158,9 +160,6 @@ s)))) (And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s)))))
 (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s)))))
 -/
 #eval nnf <<"(p <=> q) <=> ~(r ==> s)">>
-/-
-
--/
 #guard nenf <<"(p <=> q) <=> ~(r ==> s)">> ==
   .Iff
     (.Iff (.Atom ⟨ "p" ⟩ ) (.Atom ⟨ "q" ⟩ ))
@@ -197,7 +196,7 @@ abbrev CNFFormula (α: Type) := List (List (Formula α))
 
 abbrev PCNFFormula := CNFFormula Prp
 
-def print_cnf_formula_sets := List.map (List.map (print_qliteral print_propvar))
+def print_cnf_formula_sets := List.map (List.map (print_qliteral print_prp))
 
 /- Distribute for the set of sets representation -/
 def pure_distrib (s1 s2: CNFFormula α) : CNFFormula α :=
@@ -316,116 +315,109 @@ namespace Examples
 
 open CNF
 
-#eval psimplify <<"(p ∧ q) ∧ ~(r ∧ s)">>
-#eval nnf <<"(p ∧ q) ∧ ~(r ∧ s)">>
-#eval simpcnf <<"(p ∧ q) ∧ ~(r ∧ s)">> == [[<<"p">>], [<<"q">>], [<<"~r">>, <<"~s">>]]
-/-
-"<<p ∧ q ∧ (~r ∨ ~s)>>"
--/
-#eval print_prop_formula (cnf <<"(p ∧ q) ∧ ~(r ∧ s)">>)
+#guard print_pf (psimplify <<"(false ∧ p ∧ q) ∧ ~(r ∧ s)">>) == "<<false>>"
+#guard print_pf (psimplify <<"(p ∧ q) ∧ ~(r ∧ s)">>) == "<<(p ∧ q) ∧ ~(r ∧ s)>>"
+#guard print_pf (nnf <<"(p ∧ ~q) ∧ ~(r ∧ s)">>) == "<<(p ∧ ~q) ∧ (~r ∨ ~s)>>"
+#guard simpcnf <<"(p ∧ q) ∧ ~(r ∧ s)">> == [[<<"p">>], [<<"q">>], [<<"~r">>, <<"~s">>]]
+#guard print_pf (cnf <<"(p ∧ q) ∧ ~(r ∧ s)">>) == "<<p ∧ q ∧ (~r ∨ ~s)>>"
+
 
 /-
 Tseitin transformation of Iff results in 11 logical connectives:
 
-"<<(p ∨ q ∨ r) ∧ (p ∨ ~q ∨ ~r) ∧ (q ∨ ~p ∨ ~r) ∧ (r ∨ ~p ∨ ~q)>>"
--/
-#eval print_prop_formula (cnf <<"(p <=> (q <=> r))">>)
 
-/-
-[[p, q, r], [p, q, Not s], [p, s, Not q, Not r], [q, s, Not p, Not r], [r, Not
-p, Not q], [Not p, Not q, Not s]]
 -/
-#eval simpcnf <<"(p <=> q) <=> ~(r ==> s)">>
+#guard print_pf (cnf <<"(p <=> (q <=> r))">>) ==
+  "<<(p ∨ q ∨ r) ∧ (p ∨ ~q ∨ ~r) ∧ (q ∨ ~p ∨ ~r) ∧ (r ∨ ~p ∨ ~q)>>"
+
+#guard simpcnf <<"(p <=> q) <=> ~(r ==> s)">> ==
+  [[<<"p">>, <<"q">>, <<"r">>],
+   [<<"p">>, <<"q">>, .Not <<"s">>],
+   [<<"p">>, <<"s">>, .Not <<"q">>, .Not <<"r">>],
+   [<<"q">>, <<"s">>, .Not <<"p">>, .Not <<"r">>],
+   [<<"r">>, .Not <<"p">>, .Not <<"q">>],
+   [.Not <<"p">>, .Not <<"q">>, .Not <<"s">>]]
+
 
 /- --------------------------------------------------------------- -/
 /- Example 1: running example in the Handbook                      -/
 /- --------------------------------------------------------------- -/
 def ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
-/-
-"<<(p ∨ q) ∧ (p ∨ r) ∧ (~p ∨ ~r)>>"
--/
-#eval print_prop_formula (cnf ex1)
-/-
-"<<(p ∨ p_1 ∨ ~p_2) ∧ (p ∨ p_3) ∧ (p_1 ∨ ~q ∨ ~r) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_4) ∧ (p_3 ∨ r) ∧ (p_3 ∨ ~p_4) ∧ p_4 ∧ (p_4 ∨ ~p_2 ∨ ~p_3) ∧ (q ∨ ~p_1) ∧ (r ∨ ~p_1) ∧ (~p ∨ ~p_3 ∨ ~r)>>"
--/
-#eval print_prop_formula (defcnf ex1)
-/-
-[["p", "p_1", "~p_2"],
- ["p", "p_3"],
- ["p_1", "~q", "~r"],
- ["p_2", "~p"],
- ["p_2", "~p_1"],
- ["p_2", "~p_4"],
- ["p_3", "r"],
- ["p_3", "~p_4"],
- ["p_4"],
- ["p_4", "~p_2", "~p_3"],
- ["q", "~p_1"],
- ["r", "~p_1"],
- ["~p", "~p_3", "~r"]]
 
--/
-#eval print_cnf_formula_sets (defcnf_sets ex1)
+#guard print_pf (cnf ex1) == "<<(p ∨ q) ∧ (p ∨ r) ∧ (~p ∨ ~r)>>"
+#guard print_pf (defcnf ex1) ==
+  ("<<(p ∨ p_1 ∨ ~p_2) ∧ (p ∨ p_3) ∧ (p_1 ∨ ~q ∨ ~r) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ " ++
+  "(p_2 ∨ ~p_4) ∧ (p_3 ∨ r) ∧ (p_3 ∨ ~p_4) ∧ p_4 ∧ (p_4 ∨ ~p_2 ∨ ~p_3) ∧ (q ∨ ~p_1) ∧ " ++
+  "(r ∨ ~p_1) ∧ (~p ∨ ~p_3 ∨ ~r)>>")
+#guard print_cnf_formula_sets (defcnf_sets ex1) ==
+  [["p", "p_1", "~p_2"],
+   ["p", "p_3"],
+   ["p_1", "~q", "~r"],
+   ["p_2", "~p"],
+   ["p_2", "~p_1"],
+   ["p_2", "~p_4"],
+   ["p_3", "r"],
+   ["p_3", "~p_4"],
+   ["p_4"],
+   ["p_4", "~p_2", "~p_3"],
+   ["q", "~p_1"],
+   ["r", "~p_1"],
+   ["~p", "~p_3", "~r"]]
 
 /- --------------------------------------------------------------- -/
 /- Example 2: already in CNF, blows up to 13 clauses in defcnf     -/
 /- --------------------------------------------------------------- -/
 def ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
 
-/-
-"<<(p ∨ q ∨ r) ∧ (~p ∨ ~r)>>"
--/
-#eval print_prop_formula (cnf ex2)
+/- plain cnf -/
+#guard print_pf (cnf ex2) == "<<(p ∨ q ∨ r) ∧ (~p ∨ ~r)>>"
 
-/-
-"<<(p ∨ p_1 ∨ ~p_2) ∧ (p ∨ p_3) ∧ (p_1 ∨ ~q) ∧ (p_1 ∨ ~r) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_4) ∧ (p_3 ∨ r) ∧ (p_3 ∨ ~p_4) ∧ p_4 ∧ (p_4 ∨ ~p_2 ∨ ~p_3) ∧ (q ∨ r ∨ ~p_1) ∧ (~p ∨ ~p_3 ∨ ~r)>>"
--/
-#eval print_prop_formula (defcnf ex2)
+/- defcnf -/
+#guard print_pf (defcnf ex2) ==
+  ("<<(p ∨ p_1 ∨ ~p_2) ∧ (p ∨ p_3) ∧ (p_1 ∨ ~q) ∧ (p_1 ∨ ~r) ∧ (p_2 ∨ ~p) ∧ " ++
+  "(p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_4) ∧ (p_3 ∨ r) ∧ (p_3 ∨ ~p_4) ∧ p_4 ∧ (p_4 ∨ ~p_2 ∨ ~p_3) ∧ " ++
+  "(q ∨ r ∨ ~p_1) ∧ (~p ∨ ~p_3 ∨ ~r)>>")
 
-/-
-[["p", "p_1", "~p_2"],
- ["p", "p_3"],
- ["p_1", "~q"],
- ["p_1", "~r"],
- ["p_2", "~p"],
- ["p_2", "~p_1"],
- ["p_2", "~p_4"],
- ["p_3", "r"],
- ["p_3", "~p_4"],
- ["p_4"],
- ["p_4", "~p_2", "~p_3"],
- ["q", "r", "~p_1"],
- ["~p", "~p_3", "~r"]]
--/
-#eval print_cnf_formula_sets (defcnf_sets ex2)
+/- defcnf_sets -/
+#guard print_cnf_formula_sets (defcnf_sets ex2) ==
+  [["p", "p_1", "~p_2"],
+   ["p", "p_3"],
+   ["p_1", "~q"],
+   ["p_1", "~r"],
+   ["p_2", "~p"],
+   ["p_2", "~p_1"],
+   ["p_2", "~p_4"],
+   ["p_3", "r"],
+   ["p_3", "~p_4"],
+   ["p_4"],
+   ["p_4", "~p_2", "~p_3"],
+   ["q", "r", "~p_1"],
+   ["~p", "~p_3", "~r"]]
 
 /- --------------------------------------------------------------- -/
 /- Example 3: 3-clause basic cnf, blows up to 10 clauses in defcnf -/
 /- --------------------------------------------------------------- -/
 def ex3 := <<"(p ∨ (q ∧ ~r)) ∧ s">>
 
-/-
-"<<(p ∨ q) ∧ (p ∨ ~r) ∧ s>>"
--/
-#eval print_prop_formula (cnf ex3)
+/- plain cnf -/
+#guard print_pf (cnf ex3) == "<<(p ∨ q) ∧ (p ∨ ~r) ∧ s>>"
 
-/-
-"<<(p ∨ p_1 ∨ ~p_2) ∧ (p_1 ∨ r ∨ ~q) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_3) ∧ p_3 ∧ (p_3 ∨ ~p_2 ∨ ~s) ∧ (q ∨ ~p_1) ∧ (s ∨ ~p_3) ∧ (~p_1 ∨ ~r)>>"
--/
-#eval print_prop_formula (defcnf ex3)
+/- defcnf -/
+#guard print_pf (defcnf ex3) ==
+  "<<(p ∨ p_1 ∨ ~p_2) ∧ (p_1 ∨ r ∨ ~q) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_3) ∧ " ++
+  "p_3 ∧ (p_3 ∨ ~p_2 ∨ ~s) ∧ (q ∨ ~p_1) ∧ (s ∨ ~p_3) ∧ (~p_1 ∨ ~r)>>"
 
-/-
-[["p", "p_1", "~p_2"],
- ["p_1", "r", "~q"],
- ["p_2", "~p"],
- ["p_2", "~p_1"],
- ["p_2", "~p_3"],
- ["p_3"],
- ["p_3", "~p_2", "~s"],
- ["q", "~p_1"],
- ["s", "~p_3"],
- ["~p_1", "~r"]]
--/
-#eval print_cnf_formula_sets (defcnf_sets ex3)
+/- defcnf_sets -/
+#guard print_cnf_formula_sets (defcnf_sets ex3) ==
+  [["p", "p_1", "~p_2"],
+   ["p_1", "r", "~q"],
+   ["p_2", "~p"],
+   ["p_2", "~p_1"],
+   ["p_2", "~p_3"],
+   ["p_3"],
+   ["p_3", "~p_2", "~s"],
+   ["q", "~p_1"],
+   ["s", "~p_3"],
+   ["~p_1", "~r"]]
 
 end Examples
