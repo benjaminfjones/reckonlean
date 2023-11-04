@@ -38,3 +38,6 @@ end StringManip
 
 #check Nat.max
 #check String.toNat?
+
+-- slash dot!
+#eval (· * 2) 5

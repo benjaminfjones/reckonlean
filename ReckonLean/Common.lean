@@ -14,6 +14,10 @@ namespace String
 end String
 
 namespace List
+
+  /- Convenient List alises -/
+  def mem {α: Type} [BEq α] (x: α) (xs: List α) : Bool := List.contains xs x
+
   /- Like `foldl` but has no base case which is convenient in certain places -/
   def end_itlist [Inhabited α] (f: α → α → α) : List α → α
     | [] => panic! "end_itlist"
@@ -80,6 +84,21 @@ namespace List
 
   example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
   example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
+
+/- ------------------------------------------------------------------------- -/
+/- Find list member that maximizes or minimizes a function.                  -/
+/- ------------------------------------------------------------------------- -/
+
+/- Optimize an objective function given an ordering on objective values. -/
+def optimize (ord: β → β → Bool) (f : α → β) : List α → Option α
+  | [] => none
+  | x :: rest =>
+    let rest_obj_vals := List.map (fun x => (x, f x)) rest
+    some ((foldr (fun p@(_, y) p'@(_', y') => if ord y y' then p else p') (x, f x)
+      rest_obj_vals).fst)
+
+def maximize [Ord β] (f: α → β) (l: List α) : Option α := optimize (compare · · == .gt) f l
+def minimize [Ord β] (f: α → β) (l: List α) : Option α := optimize (compare · · == .lt) f l
 
 end List
 
@@ -158,6 +177,10 @@ where
 
 #guard setify [1, 3, 2, 1] == [1, 2, 3]  -- true
 
+def set_image [Ord β] [BEq β] (f: α -> β) (s : List α) := setify (List.map f s)
+
+#guard set_image (fun _ => 0) [1, 3, 2, 1] == [0]
+
 /- Construct the union of two lists, as a canonical set -/
 def union : List α → List α → List α
   | s1, s2 => aux_union (setify s1) (setify s2)
@@ -174,6 +197,10 @@ where
 
 #guard union [1,2,3] [4,5] == [1, 2, 3, 4, 5]
 #guard union [1,2,3] [1, 2, 3] == [1, 2, 3]
+
+def unions (s: List (List α)) : List α := setify (List.foldl List.append [] s)
+
+#guard unions [[1,2,3], [4,5,6], [1,5,8]] == [1,2,3,4,5,6,8]
 
 def list_compare : List α → List α → Ordering
     | [], [] => .eq
@@ -289,9 +316,4 @@ where
           false
         else aux l1 t2
 
-def unions (s: List (List α)) : List α := setify (List.foldl List.append [] s)
-
-#guard unions [[1,2,3], [4,5,6], [1,5,8]] == [1,2,3,4,5,6,8]
-
-def set_image {β: Type} [Ord β] [BEq β] (f: α → β) (s: List α) : List β :=
-  setify (List.map f s)
+end Set
