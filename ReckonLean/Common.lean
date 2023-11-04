@@ -90,18 +90,6 @@ This implementation is used in order not to have to depend on Std4 or Mathlib4
 for a set datatype. It is fast enough the purposes of this project.
 -/
 
-/-
-
-Useful vim macros
-
-:s/(\*/\/-/g
-:s/\*)/-\//g
-:s/^let /def /g
-:s/=/:=/g
-:s/ in$//g
-:s/->/=>/g
-
--/ -/ -/ -/
 namespace Set
 open Ord
 open Ordering
