@@ -1,3 +1,5 @@
+import Std.Tactic.GuardExpr
+
 import ReckonLean.Common
 import ReckonLean.Formulas
 import ReckonLean.FPF
@@ -39,9 +41,15 @@ syntax "<<" propf ">>" : term
 macro_rules
 | `(<<$s:str>>) => `(parse_prop_formula $s)
 
-#check <<"p ∧ q">>
-#eval  <<"p ∧ r">>
-#eval  <<"p ∧ (q ∨ (r ==> s))">>
+#guard  <<"p ∧ r">> == Formula.And (Formula.Atom ⟨"p"⟩) (Formula.Atom ⟨"r"⟩)
+#guard  <<"p ∧ (q ∨ (r ==> s))">> ==
+  Formula.And
+    (Formula.Atom ⟨"p"⟩)
+    (Formula.Or
+      (Formula.Atom ⟨"q"⟩)
+      (Formula.Imp
+        (Formula.Atom ⟨"r"⟩)
+          (Formula.Atom ⟨"s"⟩)))
 
 /- Prop formula Printer -/
 def print_propvar (_prec: Int) (p: Prp) := p.name
@@ -52,14 +60,9 @@ Examples
 -/
 
 /- round trip -/
-#eval print_prop_formula (<<"p ∧ q">>) == "<<p ∧ q>>"  -- true
-/- `rfl` won't close this for some reason, the LHS fails to evaluate fully
-set_option trace.profiler true
-example : print_prop_formula <<"p /\\ q">> = "<<p /\\ q>>" := by rfl
--/
-
-#eval print_prop_formula <<"forall p. p ∨ q">> == "<<forall p. p ∨ q>>"  -- true
-#eval print_prop_formula << "forall p. (exists q. (p ∨ ~p) ∧ (p ∨ q))">> ==
+#guard print_prop_formula (<<"p ∧ q">>) == "<<p ∧ q>>"
+#guard print_prop_formula <<"forall p. p ∨ q">> == "<<forall p. p ∨ q>>"
+#guard print_prop_formula << "forall p. (exists q. (p ∨ ~p) ∧ (p ∨ q))">> ==
    "<<forall p. exists q. (p ∨ ~p) ∧ (p ∨ q)>>"  -- true; different parentheses
 
 
@@ -94,13 +97,14 @@ def psimplify : Formula α → Formula α
   | .Iff p q => psimplify1 (.Iff (psimplify p) (psimplify q))
   | fm => fm
 
-/- Imp (Not x) (Not y) -/
-#eval psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">>
-/- <<~x ==> ~y>> -/
-#eval print_prop_formula (psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">>)
+#guard psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">> ==
+  .Imp (.Not (.Atom ⟨ "x" ⟩ )) (.Not (.Atom ⟨ "y" ⟩ ))
 
-/- <<true>> -/
-#eval print_prop_formula (psimplify <<"((x ==> y) ==> true) ∨ ~false">>)
+#guard print_prop_formula (psimplify <<"(true ==> (x <=> false)) ==> ~(y ∨ false ∧ z)">>) ==
+  "<<~x ==> ~y>>"
+
+
+#guard print_prop_formula (psimplify <<"((x ==> y) ==> true) ∨ ~false">>) == "<<true>>"
 
 /- Useful predicates and transformations for literals -/
 def negative : Formula α → Bool | .Not _ => true | _ => false
@@ -144,6 +148,8 @@ where
 decreasing_by sorry
 
 /-
+Not gonna guard this one :sweat:
+
 Or (And (Or (And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r
 s)))) (And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s)))))
 (And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s))))) (And (Or
@@ -153,9 +159,12 @@ s)))) (And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s)))))
 -/
 #eval nnf <<"(p <=> q) <=> ~(r ==> s)">>
 /-
-Iff (Iff p q) (And r (Not s))
+
 -/
-#eval nenf <<"(p <=> q) <=> ~(r ==> s)">>
+#guard nenf <<"(p <=> q) <=> ~(r ==> s)">> ==
+  .Iff
+    (.Iff (.Atom ⟨ "p" ⟩ ) (.Atom ⟨ "q" ⟩ ))
+    (.And (.Atom ⟨"r"⟩ ) (.Not (.Atom ⟨ "s" ⟩ )))
 /- TODO: prove these are both equivalent to the original formula -/
 
 def list_conj {α : Type} [Inhabited α] : List (Formula α) → Formula α
@@ -286,10 +295,10 @@ def max_varindex (pfx str: String) (n: Nat): Nat :=
     if List.all s'.toList numeric then Nat.max n (String.toNat! s')
     else n
 
-#eval max_varindex "p" "p5" 4  -- 5
-#eval max_varindex "p" "p5" 6  -- 6
-#eval max_varindex "q" "p5" 8  -- 8
-#eval max_varindex "q" "foobar" 0  -- 0
+#guard max_varindex "p" "p5" 4 == 5
+#guard max_varindex "p" "p5" 6 == 6
+#guard max_varindex "q" "p5" 8 == 8
+#guard max_varindex "q" "foobar" 0 == 0
 
 def mk_defcnf (fn: CNFState → CNFState) (fm: PFormula) : PCNFFormula :=
   let fm' := nenf fm

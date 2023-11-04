@@ -5,6 +5,8 @@ Polymorphic type of formulas with parser and printer.
 -/
 
 import Init.Data.Format.Basic
+import Std.Tactic.GuardExpr
+
 import ReckonLean.Common
 import ReckonLean.Parser
 
@@ -24,12 +26,13 @@ inductive Formula (a: Type) where
   | Exists (v : String) (p : Formula a)
 deriving BEq, Hashable, Inhabited, Ord, Repr
 
-#eval (default: Formula String)  -- Formula.False
-#eval Formula.Atom "Adam"  -- Formula.Atom "Adam"
-#eval Formula.Atom "Adam" == Formula.False  -- false
-#eval compare (Formula.Not (Formula.Atom "Adam")) Formula.False == .gt -- true
-#eval compare (Formula.False: Formula Nat) Formula.True == .lt -- true
-#eval compare (Formula.False: Formula Nat) Formula.False == .eq -- true
+/- Simple instance tests for Formula α -/
+#guard (default: Formula String) == Formula.False
+#guard Formula.Atom "Adam" == Formula.Atom "Adam"
+#guard Formula.Atom "Adam" != Formula.False
+#guard compare (Formula.Not (Formula.Atom "Adam")) Formula.False == .gt
+#guard compare (Formula.False: Formula Nat) Formula.True == .lt
+#guard compare (Formula.False: Formula Nat) Formula.False == .eq
 
 /-
 General parsing of iterated infixes
