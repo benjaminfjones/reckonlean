@@ -302,12 +302,48 @@ def max_varindex (pfx str: String) (n: Nat): Nat :=
 def mk_defcnf (fn: CNFState → CNFState) (fm: PFormula) : PCNFFormula :=
   let fm' := nenf fm
   let n := 1 + overatoms (fun p n => max_varindex "p_" p.name n) fm' 0
-  let st' := fn {formula := fm', defs := undefined, index := n}
-  let deflist := List.map (fun tt => tt.snd.snd ) (graph st'.defs)
-  Set.unions (simpcnf st'.formula :: List.map simpcnf deflist)
+  let st := fn {formula := fm', defs := undefined, index := n}
+  let deflist := List.map (fun tt => tt.snd.snd ) (graph st.defs)
+  Set.unions (simpcnf st.formula :: List.map simpcnf deflist)
 
 def defcnf_sets (fm: PFormula) : PCNFFormula := mk_defcnf defcnf_inner fm
 def defcnf (fm: PFormula) : PFormula := list_conj (List.map list_disj (defcnf_sets fm))
+
+/-!
+Optimized version of defcnf
+
+ 1. preserve outter conjunctive structure: only defcnf the conjuncts
+ 2. in a conjunct, leave atomic parts of disjunts alone (do not make new definitions for them)
+
+-/
+
+/-!
+The state transformer part of `defcnf_inner` above, but without intro'ing new
+definitions.
+-/
+def subcnf (sfn: CNFState → CNFState) (op: PFormula → PFormula → PFormula)
+           (p q: PFormula) (st: CNFState) : CNFState :=
+  let st1 := sfn { st with formula := p }
+  let st2 := sfn { st1 with formula := q }
+  { formula := op st1.formula st2.formula, defs := st2.defs, index := st2.index }
+
+def orcnf (st: CNFState) : CNFState :=
+  match st.formula with
+  | .Or p q => subcnf orcnf mk_or p q st
+  | _ => defcnf_inner st
+decreasing_by sorry
+
+def andcnf (st: CNFState) : CNFState :=
+  match st.formula with
+  | .And p q => subcnf andcnf mk_and p q st
+  | _ => orcnf st
+decreasing_by sorry
+
+/- Optimized defcnf on the set of sets representation -/
+def defcnf_opt_sets : PFormula → PCNFFormula := mk_defcnf andcnf
+
+/- Optimized defcnf on the PFormula representatin -/
+def defcnf_opt : PFormula → PFormula := list_conj ∘ (List.map list_disj) ∘ defcnf_opt_sets
 
 end CNF
 
@@ -322,11 +358,19 @@ open CNF
 #guard print_pf (cnf <<"(p ∧ q) ∧ ~(r ∧ s)">>) == "<<p ∧ q ∧ (~r ∨ ~s)>>"
 
 
-/-
-Tseitin transformation of Iff results in 11 logical connectives:
+/- Trivial example: all the gory details in `mkdefcnf`, `andcnf`, ...  -/
+def triv := <<"p ∧ q">>
+#guard print_pf (nenf triv) == "<<p ∧ q>>"
+#guard 1 + overatoms (fun p n => max_varindex "p_" p.name n) triv 0 == 1
+def triv_final_st := (andcnf {formula := triv, defs := FPF.undefined, index := 1})
+#guard triv_final_st.formula == Formula.And <<"p">> <<"q">>
+#guard FPF.to_list triv_final_st.defs == []
+#guard simpcnf <<"p ∧ q">> == [[<<"p">>], [<<"q">>]]
+#guard Set.unions [simpcnf <<"p ∧ q">>] == [[<<"p">>], [<<"q">>]]
+#guard print_cnf_formula_sets (defcnf_opt_sets triv) == [["p"], ["q"]]
+#guard print_cnf_formula_sets (defcnf_opt_sets triv) == [["p"], ["q"]]
 
-
--/
+/- Tseitin transformation of Iff results in 11 logical connectives: -/
 #guard print_pf (cnf <<"(p <=> (q <=> r))">>) ==
   "<<(p ∨ q ∨ r) ∧ (p ∨ ~q ∨ ~r) ∧ (q ∨ ~p ∨ ~r) ∧ (r ∨ ~p ∨ ~q)>>"
 
@@ -349,6 +393,8 @@ def ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
   ("<<(p ∨ p_1 ∨ ~p_2) ∧ (p ∨ p_3) ∧ (p_1 ∨ ~q ∨ ~r) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ " ++
   "(p_2 ∨ ~p_4) ∧ (p_3 ∨ r) ∧ (p_3 ∨ ~p_4) ∧ p_4 ∧ (p_4 ∨ ~p_2 ∨ ~p_3) ∧ (q ∨ ~p_1) ∧ " ++
   "(r ∨ ~p_1) ∧ (~p ∨ ~p_3 ∨ ~r)>>")
+
+/- 13 clauses -/
 #guard print_cnf_formula_sets (defcnf_sets ex1) ==
   [["p", "p_1", "~p_2"],
    ["p", "p_3"],
@@ -363,6 +409,10 @@ def ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
    ["q", "~p_1"],
    ["r", "~p_1"],
    ["~p", "~p_3", "~r"]]
+
+/- Optimized version has 5 clauses -/
+#guard print_cnf_formula_sets (defcnf_opt_sets ex1)
+  == [["p", "p_1"], ["p_1", "~q", "~r"], ["q", "~p_1"], ["r", "~p_1"], ["~p", "~r"]]
 
 /- --------------------------------------------------------------- -/
 /- Example 2: already in CNF, blows up to 13 clauses in defcnf     -/
@@ -394,6 +444,10 @@ def ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
    ["q", "r", "~p_1"],
    ["~p", "~p_3", "~r"]]
 
+/- Optimized version intros no additional prop variables -/
+#eval print_cnf_formula_sets (defcnf_opt_sets ex2)
+  == [["p", "q", "r"], ["~p", "~r"]]
+
 /- --------------------------------------------------------------- -/
 /- Example 3: 3-clause basic cnf, blows up to 10 clauses in defcnf -/
 /- --------------------------------------------------------------- -/
@@ -407,7 +461,7 @@ def ex3 := <<"(p ∨ (q ∧ ~r)) ∧ s">>
   "<<(p ∨ p_1 ∨ ~p_2) ∧ (p_1 ∨ r ∨ ~q) ∧ (p_2 ∨ ~p) ∧ (p_2 ∨ ~p_1) ∧ (p_2 ∨ ~p_3) ∧ " ++
   "p_3 ∧ (p_3 ∨ ~p_2 ∨ ~s) ∧ (q ∨ ~p_1) ∧ (s ∨ ~p_3) ∧ (~p_1 ∨ ~r)>>"
 
-/- defcnf_sets -/
+/- defcnf_sets: 10 clauses -/
 #guard print_cnf_formula_sets (defcnf_sets ex3) ==
   [["p", "p_1", "~p_2"],
    ["p_1", "r", "~q"],
@@ -419,6 +473,10 @@ def ex3 := <<"(p ∨ (q ∧ ~r)) ∧ s">>
    ["q", "~p_1"],
    ["s", "~p_3"],
    ["~p_1", "~r"]]
+
+/- optimized: 5 clauses -/
+#guard print_cnf_formula_sets (defcnf_opt_sets ex3)
+  == [["p", "p_1"], ["p_1", "r", "~q"], ["q", "~p_1"], ["s"], ["~p_1", "~r"]]
 
 /- --------------------------------------------------------------- -/
 /- Example 4: Nested Equivalence                                   -/
@@ -432,6 +490,11 @@ def ex3 := <<"(p ∨ (q ∧ ~r)) ∧ s">>
 
 #guard print_pf (defcnf <<"(p <=> q) <=> ~(r ==> s)">>) ==
   "<<(p ∨ p_1 ∨ q) ∧ (p ∨ ~p_1 ∨ ~q) ∧ (p_1 ∨ p_2 ∨ p_3) ∧ (p_1 ∨ ~p ∨ ~q) ∧ " ++
+  "(p_1 ∨ ~p_2 ∨ ~p_3) ∧ (p_2 ∨ s ∨ ~r) ∧ (p_2 ∨ ~p_1 ∨ ~p_3) ∧ p_3 ∧ " ++
+  "(p_3 ∨ ~p_1 ∨ ~p_2) ∧ (q ∨ ~p ∨ ~p_1) ∧ (r ∨ ~p_2) ∧ (~p_2 ∨ ~s)>>"
+
+#eval print_pf (defcnf_opt <<"(p <=> q) <=> ~(r ==> s)">>)
+  == "<<(p ∨ p_1 ∨ q) ∧ (p ∨ ~p_1 ∨ ~q) ∧ (p_1 ∨ p_2 ∨ p_3) ∧ (p_1 ∨ ~p ∨ ~q) ∧ " ++
   "(p_1 ∨ ~p_2 ∨ ~p_3) ∧ (p_2 ∨ s ∨ ~r) ∧ (p_2 ∨ ~p_1 ∨ ~p_3) ∧ p_3 ∧ " ++
   "(p_3 ∨ ~p_1 ∨ ~p_2) ∧ (q ∨ ~p ∨ ~p_1) ∧ (r ∨ ~p_2) ∧ (~p_2 ∨ ~s)>>"
 
