@@ -78,8 +78,7 @@ decreasing_by sorry
 /- Davis-Putnam satisfiability tester and tautology checker.                 -/
 /- ------------------------------------------------------------------------- -/
 
-/- TODO: replace with defcnf_opt -/
-def dpsat fm := dp (CNF.defcnf_sets fm)
+def dpsat fm := dp (CNF.defcnf_opt_sets fm)
 def dptaut fm := not (dpsat (.Not fm))
 
 namespace Examples
@@ -88,7 +87,7 @@ def iff_ex := <<"(p <=> q) <=> ~(r ==> s)">>
 /- Prove fm <=> NNF <=> NENF -/
 #guard dptaut (.Iff iff_ex (nnf iff_ex))
 #guard dptaut (.Iff iff_ex (nenf iff_ex))
-/- Prove defcnf fm ==> fm -/
-#guard dptaut (.Imp (CNF.defcnf iff_ex) iff_ex)
+/- Prove defcnf_opt fm => fm -/
+#guard dptaut (.Imp (CNF.defcnf_opt iff_ex) iff_ex)
 
 end Examples
