@@ -90,11 +90,127 @@ def dptaut fm := not (dpsat (.Not fm))
 
 namespace Examples
 
+/- Alises just for this section -/
+def satisfiable := dpsat
+def tautology := dptaut
+
 def iff_ex := <<"(p <=> q) <=> ~(r ==> s)">>
 /- Prove fm <=> NNF <=> NENF -/
 #guard dptaut (.Iff iff_ex (nnf iff_ex))
 #guard dptaut (.Iff iff_ex (nenf iff_ex))
 /- Prove defcnf_opt fm => fm -/
 #guard dptaut (.Imp (CNF.defcnf_opt iff_ex) iff_ex)
+
+/- ------------------- -/
+/- Lots of tautologies -/
+/- ------------------- -/
+
+/- "tautology: and_comm" -/
+#guard tautology <<"p ∧ q <=> q ∧ p">>
+
+/- Extended example where DP requires several resolution steps -/
+section pqqr
+  def pqqr := <<"p ∧ q <=> q ∧ r">>
+  def not_pqqr := <<"~(p ∧ q <=> q ∧ r)">>
+
+  /- NNF is correct -/
+  #guard print_pf (nnf not_pqqr)
+    == "<<(p ∧ q) ∧ (~q ∨ ~r) ∨ (~p ∨ ~q) ∧ q ∧ r>>"
+  /-
+  clearly: p, q, ~r satisfies the defcnf of `not_pqqr`
+  [[ p,  q],
+   [ p,  r],
+   [ q],
+   [ ~p,  ~q, ~r]]
+  -/
+  /-
+
+  -/
+  #guard CNF.print_cnf_formula_sets (CNF.simpcnf <<"~(p ∧ q <=> q ∧ r)">>)
+    ==  [["p", "q"], ["p", "r"], ["q"], ["~p", "~q", "~r"]]
+
+  /-
+  DP trace:
+  - unit_prop: <<p_3>>
+  - resolve_on: <<p>>
+  - resolve_on: <<p_1>>
+  - resolve_on: <<r>>
+  - afr: pos_only #1
+  - arf: neg_only #0
+  SAT
+  -/
+  #guard satisfiable <<"~(p ∧ q <=> q ∧ r)">>
+  #guard not (tautology <<"p ∧ q <=> q ∧ r">>)
+  /- related equivalence proofs -/
+  #guard tautology (Formula.Iff (nenf not_pqqr) (nnf not_pqqr))
+  #guard tautology (Formula.Iff (not_pqqr) (nnf not_pqqr))
+  #guard not (tautology (Formula.Iff (pqqr) (nnf not_pqqr)))
+end pqqr
+
+/- "tautology: p or not p" -/
+#guard tautology <<"p ∨ ~p">>
+
+/- "not tautology: p or q implies p" -/
+#guard not (tautology <<"p ∨ q ==> p">>)
+
+/- "tautology: p or q implies stuff"; uses only unit propagation -/
+#guard not (tautology <<"p ∨ q ==> q ∨ (p <=> q)">>)
+
+/- "satisfiable: p or q implies stuff"; uses afr and resolution -/
+#guard satisfiable <<"p ∨ q ==> q ∨ (p <=> q)">>
+
+/- "tautology: p or q and not (p and q)" -/
+#guard tautology <<"(p ∨ q) ∧ ~(p ∧ q) ==> (~p <=> q)">>
+
+/- Surprising tautologies, including Dijkstra's Golden Rule -/
+
+/- "tautology: counter intuitive" -/
+#guard tautology <<"(p ==> q) ∨ (q ==> p)">>
+
+/- "tautology: Dijkstra Scholten"
+
+DP trace:
+- unit_prop: <<p_6>>
+- resolve_on: <<p_2>>
+- resolve_on: <<p>>
+- resolve_on: <<p_1>>
+- resolve_on: <<r>>
+- resolve_on: <<q>>
+- resolve_on: <<p_3>>
+- resolve_on: <<p_4>>
+- unit_prop: <<p_5>>
+-/
+#guard tautology <<"p ∨ (q <=> r) <=> (p ∨ q <=> p ∨ r)">>
+
+/- "Golden Rule" -/
+/- "tautology: golden rule 1" -/
+#guard tautology <<"p ∧ q <=> ((p <=> q) <=> p ∨ q)">>
+
+/- "tautology: contrapositive 1" -/
+#guard tautology <<"(p ==> q) <=> (~q ==> ~p)">>
+
+/- "tautology: contrapositive 2" -/
+#guard tautology <<"(p ==> ~q) <=> (q ==> ~p)">>
+
+/- "common fallacy: implies not symmetric" -/
+#guard not (tautology <<"(p ==> q) <=> (q ==> p)">>)
+
+/- Some logical equivalences allowing elimination of connectives -/
+
+/- "eliminate logical connectives: {==>, false} are adequate" -/
+#guard List.all (List.map tautology
+  [
+    <<"true <=> false ==> false">>,
+    <<"~p <=> p ==> false">>,
+    <<"p ∧ q <=> (p ==> q ==> false) ==> false">>,
+    <<"p ∨ q <=> (p ==> false) ==> q">>,
+    <<"(p <=> q) <=> ((p ==> q) ==> (q ==> p) ==> false) ==> false">>
+  ]) id
+
+/- "montonicity of and"; uses only unit propagation -/
+#guard tautology <<"(p ==> p') ∧ (q ==> q') ==> ((p ∧ q) ==> (p' ∧ q'))">>
+
+/- "montonicity of or"; uses only unit propagation -/
+#guard tautology <<"(p ==> p') ∧ (q ==> q') ==> ((p ∨ q) ==> (p' ∨ q'))">>
 
 end Examples
