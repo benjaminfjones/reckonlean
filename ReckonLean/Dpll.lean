@@ -27,9 +27,9 @@ def affirmative_negative_rule (clauses : PCNFFormula) : Option PCNFFormula :=
   let neg := Set.set_image negate neg'
   /- find lits that only appear positively or only appear negatively -/
   let pos_only := Set.subtract pos neg
-  dbg_trace "afr: pos_only #{pos_only.length}"
+  dbg_trace "anr: pos_only #{pos_only.length}"
   let neg_only := Set.subtract neg pos
-  dbg_trace "arf: neg_only #{neg_only.length}"
+  dbg_trace "anr: neg_only #{neg_only.length}"
   let pure := Set.union pos_only (Set.set_image negate neg_only)
   if pure == [] then none
   else some (List.filter (fun cl => Set.intersect cl pure == []) clauses)
@@ -88,12 +88,18 @@ decreasing_by sorry
 def dpsat fm := dp (CNF.defcnf_opt_sets fm)
 def dptaut fm := not (dpsat (.Not fm))
 
+
+/- ========================================================================= -/
+/- EXAMPLES                                                                  -/
+/- ========================================================================= -/
+
 namespace Examples
 
 /- Alises just for this section -/
 def satisfiable := dpsat
 def tautology := dptaut
 
+/- Simple equivalence proof for `nnf` and `nenf` from Prop -/
 def iff_ex := <<"(p <=> q) <=> ~(r ==> s)">>
 /- Prove fm <=> NNF <=> NENF -/
 #guard dptaut (.Iff iff_ex (nnf iff_ex))
@@ -126,7 +132,7 @@ section pqqr
   /-
 
   -/
-  #guard CNF.print_cnf_formula_sets (CNF.simpcnf <<"~(p ∧ q <=> q ∧ r)">>)
+  #guard CNF.print_cnf_formula_sets (CNF.simpcnf not_pqqr)
     ==  [["p", "q"], ["p", "r"], ["q"], ["~p", "~q", "~r"]]
 
   /-
@@ -139,8 +145,8 @@ section pqqr
   - arf: neg_only #0
   SAT
   -/
-  #guard satisfiable <<"~(p ∧ q <=> q ∧ r)">>
-  #guard not (tautology <<"p ∧ q <=> q ∧ r">>)
+  #guard satisfiable not_pqqr
+  #guard not (tautology pqqr)
   /- related equivalence proofs -/
   #guard tautology (Formula.Iff (nenf not_pqqr) (nnf not_pqqr))
   #guard tautology (Formula.Iff (not_pqqr) (nnf not_pqqr))
