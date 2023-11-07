@@ -66,14 +66,17 @@ def dp (clauses: PCNFFormula) : Bool :=
   if clauses == [] then true
   else if List.mem [] clauses then false
   else
+    /- apply `one_literal_rule` until it returns `none` -/
     if let some res := Option.map dp (one_literal_rule clauses) then
       res
     else
       /- `one_literal_rule` doesn't apply any further -/
+      /- apply `affirmative_negative_rule` until it returns `none` -/
       if let some res := Option.map dp (affirmative_negative_rule clauses) then
         res
       else
         /- `affirmative_negative_rule` doesn't apply any further -/
+        /- apply `resolution_rule` and recurse -/
         dp (resolution_rule clauses).get!
 -- termination_by dp clauses => clauses.length  -- need lemmas about rules
 decreasing_by sorry
