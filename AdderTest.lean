@@ -30,14 +30,65 @@ def mk_carryselect_ripple_equivalence (n k: Nat) : PFormula :=
 
 -- #eval List.length (atoms (mk_carryselect_ripple_equivalence 4 2))  -- 39
 
+/-
+Prove the logical equivalence of `carryselect n k` and `ripplecarry n` using the
+Davis-Putnam procedure.
+-/
 def prove_equiv (n k: Nat) : Bool := dptaut (mk_carryselect_ripple_equivalence n k)
 
 def prove (n k: Nat) : IO Unit := do
+  IO.print s!"prove {n} {k}: "
   let res := prove_equiv n k
   IO.println (if res then "equivalent" else "not equivalent")
 
 -- #eval timeit "" (prove 3 2)  -- 1.1 s in the eval VM, 0.06 s compiled
 -- #eval timeit "" (prove 4 2)  -- 5.6 s in the eval VM, 0.2 s compiled
 
--- TODO: add timing, other combinations of n, k
-def main : IO Unit := prove 4 2
+/-
+Output:
+
+prove 3 1: equivalent
+time:  58.8ms
+prove 3 2: equivalent
+time:  44.5ms
+prove 3 3: equivalent
+time:  68.7ms
+prove 4 2: equivalent
+time:  255ms
+prove 4 3: equivalent
+time:  172ms
+prove 5 2: equivalent
+time:  1.11s
+prove 5 3: equivalent
+time:  10.1s
+
+-/
+def main : IO Unit := do
+  timeit "time: " (prove 3 1)
+  timeit "time: " (prove 3 2)
+  timeit "time: " (prove 3 3)
+  timeit "time: " (prove 4 2)
+  timeit "time: " (prove 4 3)
+  timeit "time: " (prove 5 2)
+  timeit "time: " (prove 5 3)
+
+/-
+Note: removing the `affirmative_negative_rule` from DP improves
+performance slightly (~20%) in these problems:
+
+prove 3 1: equivalent
+time:  45.6ms
+prove 3 2: equivalent
+time:  34ms
+prove 3 3: equivalent
+time:  53.9ms
+prove 4 2: equivalent
+time:  203ms
+prove 4 3: equivalent
+time:  136ms
+prove 5 2: equivalent
+time:  901ms
+prove 5 3: equivalent
+time:  8.34s
+
+-/
