@@ -32,7 +32,12 @@ def mk_carryselect_ripple_equivalence (n k: Nat) : PFormula :=
 
 def prove_equiv (n k: Nat) : Bool := dptaut (mk_carryselect_ripple_equivalence n k)
 
--- TODO: add timing, other combinations of n, k
-def main : IO Unit := do
-  let res := prove_equiv 4 2
+def prove (n k: Nat) : IO Unit := do
+  let res := prove_equiv n k
   IO.println (if res then "equivalent" else "not equivalent")
+
+-- #eval timeit "" (prove 3 2)  -- 1.1 s in the eval VM, 0.06 s compiled
+-- #eval timeit "" (prove 4 2)  -- 5.6 s in the eval VM, 0.2 s compiled
+
+-- TODO: add timing, other combinations of n, k
+def main : IO Unit := prove 4 2
