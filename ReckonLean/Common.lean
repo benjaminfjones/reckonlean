@@ -65,7 +65,12 @@ namespace List
 
   example : range_from 1 4 = [1, 2, 3, 4] := by rfl
 
-  /- A different API that computes the same function, with termination proof! -/
+  /-
+  `range_offset i n` has `n` elements and starts at `i`.
+
+  This has a different API from `range_from` that computes the same function,
+  with termination proof!
+  -/
   def range_offset (i : Nat) : Nat → List Nat
     | 0 => []
     | Nat.succ k => i :: range_offset (i+1) k

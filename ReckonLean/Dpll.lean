@@ -16,7 +16,7 @@ def one_literal_rule (clauses : PCNFFormula) : Option PCNFFormula :=
 where
   unit_prop (clauses: PCNFFormula) (pcl: List (Formula Prp)) : PCNFFormula :=
     let u := List.head! pcl
-    dbg_trace "unit_prop: {print_pf u}"
+    -- dbg_trace "unit_prop: {print_pf u}"
     let u' := negate u
     let clauses' := List.filter (fun cl => not (List.mem u cl)) clauses
     Set.set_image (fun cl => Set.subtract cl [ u' ]) clauses'
@@ -27,16 +27,16 @@ def affirmative_negative_rule (clauses : PCNFFormula) : Option PCNFFormula :=
   let neg := Set.set_image negate neg'
   /- find lits that only appear positively or only appear negatively -/
   let pos_only := Set.subtract pos neg
-  dbg_trace "anr: pos_only #{pos_only.length}"
+  -- dbg_trace "anr: pos_only #{pos_only.length}"
   let neg_only := Set.subtract neg pos
-  dbg_trace "anr: neg_only #{neg_only.length}"
+  -- dbg_trace "anr: neg_only #{neg_only.length}"
   let pure := Set.union pos_only (Set.set_image negate neg_only)
   if pure == [] then none
   else some (List.filter (fun cl => Set.intersect cl pure == []) clauses)
 
 /- Resolve the formula on a literal `p` -/
 def resolve_on (lit : Formula Prp) (clauses : PCNFFormula) : PCNFFormula :=
-  dbg_trace "resolve_on: {print_pf lit}"
+  -- dbg_trace "resolve_on: {print_pf lit}"
   let lit' := negate lit
   let (pos, notpos) := List.partition (List.mem lit) clauses
   let (neg, other) := List.partition (List.mem lit') notpos

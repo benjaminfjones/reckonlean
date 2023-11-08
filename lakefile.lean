@@ -14,4 +14,8 @@ lean_exe «reckonlean» {
   root := `Main
 }
 
+lean_exe «adder_test» {
+  root := `AdderTest
+}
+
 require std from git "https://github.com/leanprover/std4" @ "main"
