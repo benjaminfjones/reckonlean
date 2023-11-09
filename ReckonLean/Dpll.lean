@@ -68,7 +68,7 @@ def resolution_rule (clauses: PCNFFormula) : Option PCNFFormula :=
 /- ------------------------------------------------------------------------- -/
 
 def dp (clauses: PCNFFormula) : Bool :=
-  dbg_trace s!"dp: #clauses {List.length clauses}"
+  -- dbg_trace s!"dp: #clauses {List.length clauses}"
   if clauses == [] then true
   else if List.mem [] clauses then false
   else
@@ -95,6 +95,40 @@ def dpsat fm := dp (CNF.defcnf_opt_sets fm)
 def dptaut fm := not (dpsat (.Not fm))
 
 
+/- ------------------------------------------------------------------------- -/
+/- The Davis-Putnam-Logemann-Loveland procedure.                             -/
+/- ------------------------------------------------------------------------- -/
+
+/- Count occurances of a literal or its negation in the formula -/
+def posneg_count (clauses: PCNFFormula) (lit: PFormula) : Nat :=
+  let lit' := negate lit
+  let m := List.length (List.filterTR (fun cl => List.mem lit cl) clauses)
+  let n := List.length (List.filterTR (fun cl => List.mem lit' cl) clauses)
+  m + n
+
+/- DPPL: naive recursive version -/
+def dpll (clauses: PCNFFormula) : Bool :=
+  -- dbg_trace s!"dp: #clauses {List.length clauses}"
+  if clauses == [] then true
+  else if List.mem [] clauses then false
+  else
+    if let some res := Option.map dpll (one_literal_rule clauses) then
+      res
+    else
+      if let some res := Option.map dpll (affirmative_negative_rule clauses) then
+        res
+      else
+        /- apply splitting rule and recurse -/
+        let pvs := List.filterTR positive (Set.unions clauses)
+        let p := (List.maximize (posneg_count clauses) pvs).get!
+        (dpll ([p] :: clauses)) || (dpll ([negate p] :: clauses))
+-- termination_by number of atoms
+decreasing_by sorry
+
+def dpllsat (fm: PFormula) := dpll (CNF.defcnf_opt_sets fm)
+def dplltaut (fm: PFormula) := not (dpllsat (.Not fm))
+
+
 /- ========================================================================= -/
 /- EXAMPLES                                                                  -/
 /- ========================================================================= -/
@@ -112,13 +146,15 @@ def iff_ex := <<"(p <=> q) <=> ~(r ==> s)">>
 #guard dptaut (.Iff iff_ex (nenf iff_ex))
 /- Prove defcnf_opt fm => fm -/
 #guard dptaut (.Imp (CNF.defcnf_opt iff_ex) iff_ex)
+#guard dplltaut (.Imp (CNF.defcnf_opt iff_ex) iff_ex)
 
 /- ------------------- -/
 /- Lots of tautologies -/
 /- ------------------- -/
 
 /- "tautology: and_comm" -/
-#guard tautology <<"p ∧ q <=> q ∧ p">>
+#guard dptaut <<"p ∧ q <=> q ∧ p">>
+#guard dplltaut <<"p ∧ q <=> q ∧ p">>
 
 /- Extended example where DP requires several resolution steps -/
 section pqqr
@@ -154,9 +190,14 @@ section pqqr
   #guard satisfiable not_pqqr
   #guard not (tautology pqqr)
   /- related equivalence proofs -/
-  #guard tautology (Formula.Iff (nenf not_pqqr) (nnf not_pqqr))
-  #guard tautology (Formula.Iff (not_pqqr) (nnf not_pqqr))
-  #guard not (tautology (Formula.Iff (pqqr) (nnf not_pqqr)))
+  /- By DP -/
+  #guard dptaut (Formula.Iff (nenf not_pqqr) (nnf not_pqqr))
+  #guard dptaut (Formula.Iff (not_pqqr) (nnf not_pqqr))
+  #guard not (dptaut (Formula.Iff (pqqr) (nnf not_pqqr)))
+  /- By DPLL -/
+  #guard dplltaut (Formula.Iff (nenf not_pqqr) (nnf not_pqqr))
+  #guard dplltaut (Formula.Iff (not_pqqr) (nnf not_pqqr))
+  #guard not (dplltaut (Formula.Iff (pqqr) (nnf not_pqqr)))
 end pqqr
 
 /- "tautology: p or not p" -/
@@ -224,5 +265,32 @@ DP trace:
 
 /- "montonicity of or"; uses only unit propagation -/
 #guard tautology <<"(p ==> p') ∧ (q ==> q') ==> ((p ∨ q) ==> (p' ∨ q'))">>
+
+/- Big list of tautologies tested on all implementations -/
+
+def list_o_tautologies : List PFormula := [
+  <<"p ∨ ~p">>,
+  <<"(p ∨ q) ∧ ~(p ∧ q) ==> (~p <=> q)">>,
+  <<"(p ==> q) ∨ (q ==> p)">>,
+  <<"p ∨ (q <=> r) <=> (p ∨ q <=> p ∨ r)">>,
+  <<"p ∧ q <=> ((p <=> q) <=> p ∨ q)">>,
+  <<"(p ==> q) <=> (~q ==> ~p)">>,
+  <<"(p ==> ~q) <=> (q ==> ~p)">>,
+  <<"true <=> false ==> false">>,
+  <<"~p <=> p ==> false">>,
+  <<"p ∧ q <=> (p ==> q ==> false) ==> false">>,
+  <<"p ∨ q <=> (p ==> false) ==> q">>,
+  <<"(p <=> q) <=> ((p ==> q) ==> (q ==> p) ==> false) ==> false">>,
+  <<"(p ==> p') ∧ (q ==> q') ==> ((p ∧ q) ==> (p' ∧ q'))">>,
+  <<"(p ==> p') ∧ (q ==> q') ==> ((p ∨ q) ==> (p' ∨ q'))">>
+]
+
+/- Verify all tautologies using DP: in #eval 0.00029 s -/
+#guard List.all (List.map dptaut list_o_tautologies) id
+/- Verify all tautologies using DPLL; in #eval 0.000125 s -/
+#guard List.all (List.map dplltaut list_o_tautologies) id
+
+-- #eval timeit "" $ pure (List.all (List.map dptaut list_o_tautologies) id)
+-- #eval timeit "" $ pure (List.all (List.map dplltaut list_o_tautologies) id)
 
 end Examples
