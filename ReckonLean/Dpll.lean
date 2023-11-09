@@ -40,21 +40,26 @@ def resolve_on (lit : Formula Prp) (clauses : PCNFFormula) : PCNFFormula :=
   let lit' := negate lit
   let (pos, notpos) := List.partition (List.mem lit) clauses
   let (neg, other) := List.partition (List.mem lit') notpos
-  let pos' := Set.set_image (List.filter (· != lit)) pos
-  let neg' := Set.set_image (List.filter (· != lit')) neg
+  let pos' := Set.set_image (List.filterTR (· != lit)) pos
+  let neg' := Set.set_image (List.filterTR (· != lit')) neg
+  -- Note: `res0` is worst case quadratic in the #clauses
   let res0 := List.all_pairs Set.union pos' neg'
-  Set.union other (List.filter (non CNF.trivial) res0)
+  let non_trivs := List.filterTR (non CNF.trivial) res0
+  -- Note: Set.unions is very much not tail recursive
+  --- dbg_trace s!"resolve_on: union of {other.length} and {non_trivs.length}"
+  Set.union other non_trivs
 
 /- Heuristic for determing how large the formula blow-up is when applying
    `resolve_on` to a given literal. -/
 def resolution_blowup (cls : PCNFFormula) (l : Formula Prp) : Int :=
-  let m := List.length (List.filter (List.mem l) cls)
-  let n := List.length (List.filter (List.mem (negate l)) cls)
+  let m := List.length (List.filterTR (List.mem l) cls)
+  let n := List.length (List.filterTR (List.mem (negate l)) cls)
   (m * n) - m - n
 
 /- Apply `resolve_on` for the best literal according to heuristics -/
 def resolution_rule (clauses: PCNFFormula) : Option PCNFFormula :=
-  let pvs := List.filter positive (Set.unions clauses)
+  -- dbg_trace s!"resolution_rule: #clauses {clauses.length}"
+  let pvs := List.filterTR positive (Set.unions clauses)
   Option.map (fun p => resolve_on p clauses)
     (List.minimize (resolution_blowup clauses) pvs)
 
@@ -63,6 +68,7 @@ def resolution_rule (clauses: PCNFFormula) : Option PCNFFormula :=
 /- ------------------------------------------------------------------------- -/
 
 def dp (clauses: PCNFFormula) : Bool :=
+  dbg_trace s!"dp: #clauses {List.length clauses}"
   if clauses == [] then true
   else if List.mem [] clauses then false
   else

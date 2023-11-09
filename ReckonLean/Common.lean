@@ -186,7 +186,16 @@ def set_image [Ord β] [BEq β] (f: α -> β) (s : List α) := setify (List.map 
 
 #guard set_image (fun _ => 0) [1, 3, 2, 1] == [0]
 
-/- Construct the union of two lists, as a canonical set -/
+/-!
+Construct the union of two lists, as a canonical set
+
+Note: `union` and related functions are very much not tail recursive!
+For example, this causes stack overflow:
+
+```
+#eval (union (List.range 3700) (List.range 210858).reverse).length
+```
+-/
 def union : List α → List α → List α
   | s1, s2 => aux_union (setify s1) (setify s2)
 where

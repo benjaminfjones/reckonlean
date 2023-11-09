@@ -18,4 +18,8 @@ lean_exe «adder_test» {
   root := `AdderTest
 }
 
+lean_exe «ramsey_test» {
+  root := `RamseyTest
+}
+
 require std from git "https://github.com/leanprover/std4" @ "main"
