@@ -12,18 +12,18 @@ The original code accompanying Harrison's book is copyright (c) 2003-2007, John 
 
 ## TODO
 
+Porting from OCaml
+
 - [x] port `formulas` (& as much of `common` as needed)
-- [-] port `prop`
+- [x] port `prop`
   - [x] port basics from `prop`
   - [x] implement `prop formula` parser as Lean syntax extension
-  - [ ] port basic `prop` examples
-  - [-] port cnf functions
+  - [x] port basic `prop` examples
+  - [x] port cnf functions
     - [x] `nnf`
     - [x] basic cnf
     - [x] implement poly finite functions with `HashMap`
-    - [ ] `defcnf` and `defcnf_opt`
-  - [ ] port enough of `prop` to support `dp`, `dpll`, and `dpli`
-- [ ] port adder examples
-- [ ] port ramsey examples
-
-- [ ] ...
+    - [x] `defcnf` and `defcnf_opt`
+  - [x] port enough of `prop` to support `dp`, `dpll`, and `dpli`
+- [x] port adder examples
+- [x] port ramsey examples
