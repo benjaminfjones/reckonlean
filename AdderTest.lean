@@ -34,43 +34,72 @@ def mk_carryselect_ripple_equivalence (n k: Nat) : PFormula :=
 Prove the logical equivalence of `carryselect n k` and `ripplecarry n` using the
 Davis-Putnam procedure.
 -/
-def prove_equiv (n k: Nat) : Bool := dptaut (mk_carryselect_ripple_equivalence n k)
+def prove_equiv (impl: PFormula → Bool) (n k: Nat) : Bool := impl (mk_carryselect_ripple_equivalence n k)
 
-def prove (n k: Nat) : IO Unit := do
+def prove (impl: PFormula → Bool) (n k: Nat) : IO Unit := do
   IO.print s!"prove {n} {k}: "
-  let res := prove_equiv n k
+  let res := prove_equiv impl n k
   IO.println (if res then "equivalent" else "not equivalent")
 
--- #eval timeit "" (prove 3 2)  -- 1.1 s in the eval VM, 0.06 s compiled
--- #eval timeit "" (prove 4 2)  -- 5.6 s in the eval VM, 0.2 s compiled
+-- #eval timeit "" (prove dptaut 3 2)  -- 1.1 s in the eval VM, 0.06 s compiled
+-- #eval timeit "" (prove dptaut 4 2)  -- 5.6 s in the eval VM, 0.2 s compiled
 
 /-
 Output:
 
+Verification with DP:
+====================
 prove 3 1: equivalent
-time:  58.8ms
+time:  58.3ms
 prove 3 2: equivalent
-time:  44.5ms
+time:  44.8ms
 prove 3 3: equivalent
-time:  68.7ms
+time:  69.1ms
 prove 4 2: equivalent
 time:  255ms
 prove 4 3: equivalent
 time:  172ms
 prove 5 2: equivalent
-time:  1.11s
+time:  1.13s
 prove 5 3: equivalent
 time:  10.1s
 
+Verification with DPLL:
+====================
+prove 3 1: equivalent
+time:  97.1ms
+prove 3 2: equivalent
+time:  93ms
+prove 3 3: equivalent
+time:  122ms
+prove 4 2: equivalent
+time:  559ms
+prove 4 3: equivalent
+time:  560ms
+prove 5 2: equivalent
+time:  2.4s
+prove 5 3: equivalent
+time:  2.78s
+
 -/
 def main : IO Unit := do
-  timeit "time: " (prove 3 1)
-  timeit "time: " (prove 3 2)
-  timeit "time: " (prove 3 3)
-  timeit "time: " (prove 4 2)
-  timeit "time: " (prove 4 3)
-  timeit "time: " (prove 5 2)
-  timeit "time: " (prove 5 3)
+  IO.println "Verification with DP:\n====================="
+  timeit "time: " (prove dptaut 3 1)
+  timeit "time: " (prove dptaut 3 2)
+  timeit "time: " (prove dptaut 3 3)
+  timeit "time: " (prove dptaut 4 2)
+  timeit "time: " (prove dptaut 4 3)
+  timeit "time: " (prove dptaut 5 2)
+  timeit "time: " (prove dptaut 5 3)
+
+  IO.println "Verification with DPLL:\n====================="
+  timeit "time: " (prove dplltaut 3 1)
+  timeit "time: " (prove dplltaut 3 2)
+  timeit "time: " (prove dplltaut 3 3)
+  timeit "time: " (prove dplltaut 4 2)
+  timeit "time: " (prove dplltaut 4 3)
+  timeit "time: " (prove dplltaut 5 2)
+  timeit "time: " (prove dplltaut 5 3)
 
 /-
 Note: removing the `affirmative_negative_rule` from DP improves
