@@ -6,9 +6,31 @@ This hobby project is a [Lean 4](https://github.com/leanprover/lean4) implementa
 This project is going on in conjunction with an internal functional programming in Lean 4
 seminar following [Functional Programming in Lean](https://lean-lang.org/functional_programming_in_lean/).
 
-Currently, I'm working on porting [reckoning](https://github.com/benjaminfjones/reckoning), which was a (partial) modern OCaml adaptation of Harrison's code.
-
 The original code accompanying Harrison's book is copyright (c) 2003-2007, John Harrison.
+
+## Setup
+
+Install [elan](https://github.com/leanprover/elan)
+
+Build the project. Currently it depends on [std4](https://github.com/leanprover/std4) for some tactics, like `#guard`.
+
+```
+$ lake build
+```
+
+Run the proof and test scripts:
+
+```
+$ lake build adder_test
+$ ./build/bin/adder_test
+...
+
+$ lake build ramsey_test
+$ ./build/bin/ramsey_test
+...
+```
+
+See `lakefile.lean` for the set of proof and test scripts defined.
 
 ## TODO
 
