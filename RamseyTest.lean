@@ -32,7 +32,7 @@ s:=3, t:=3, n:=6: true
 -/
 -- #eval prove_ramsey_3_3
 
-/- Prove R(3, 4) = 9 using the DPLL tautology prover -/
+/- Prove R(3, 4) = 9 using the iterative DPLL tautology prover -/
 def prove_ramsey_3_4 : IO Unit :=
   let pres (s t n: Nat) : IO Unit := do
     let ramfm <- timeit s!"compute (ramsey {s} {t} {n}): " $ pure (ramsey s t n)
@@ -40,8 +40,8 @@ def prove_ramsey_3_4 : IO Unit :=
     let cnf_sets <- timeit "compute defcnf_opt_sets: " $ pure (CNF.defcnf_opt_sets ramfm)
     IO.println s!"number of variables: {List.length (atoms cnf)}"
     IO.println s!"number of clauses: {List.length cnf_sets}"
-    timeit "dplltaut: " (
-      let res := dplltaut ramfm
+    timeit "dplitaut: " (
+      let res := dplitaut ramfm
       IO.println s!"*** s:={s}, t:={t}, n:={n}: {res} *** \n")
   do
     IO.println "\nRamsey instance: prove R(3, 4) = 9\n=================================="
@@ -50,6 +50,85 @@ def prove_ramsey_3_4 : IO Unit :=
 def main : IO Unit := prove_ramsey_3_4
 
 /-
+Proving R(3, 4) = 9 is very quick with the iterative DPLL prover! ~36x faster than naive DPLL
+
+Ramsey instance: prove R(3, 4) = 9
+==================================
+compute (ramsey 3 4 1):  0ms
+compute defcnf_opt:  4.2e-05ms
+compute defcnf_opt_sets:  4.2e-05ms
+number of variables: 0
+number of clauses: 1
+*** s:=3, t:=4, n:=1: false ***
+
+dplitaut:  0.00179ms
+compute (ramsey 3 4 2):  4.2e-05ms
+compute defcnf_opt:  0ms
+compute defcnf_opt_sets:  4.2e-05ms
+number of variables: 0
+number of clauses: 1
+*** s:=3, t:=4, n:=2: false ***
+
+dplitaut:  0.00158ms
+compute (ramsey 3 4 3):  4.1e-05ms
+compute defcnf_opt:  4.2e-05ms
+compute defcnf_opt_sets:  4.2e-05ms
+number of variables: 3
+number of clauses: 3
+*** s:=3, t:=4, n:=3: false ***
+
+dplitaut:  0.00175ms
+compute (ramsey 3 4 4):  4.2e-05ms
+compute defcnf_opt:  0ms
+compute defcnf_opt_sets:  0ms
+number of variables: 19
+number of clauses: 40
+*** s:=3, t:=4, n:=4: false ***
+
+dplitaut:  0.00296ms
+compute (ramsey 3 4 5):  4.2e-05ms
+compute defcnf_opt:  4.2e-05ms
+compute defcnf_opt_sets:  0ms
+number of variables: 55
+number of clauses: 136
+*** s:=3, t:=4, n:=5: true ***
+
+dplitaut:  0.00213ms
+compute (ramsey 3 4 6):  4.2e-05ms
+compute defcnf_opt:  4.2e-05ms
+compute defcnf_opt_sets:  0ms
+number of variables: 130
+number of clauses: 346
+*** s:=3, t:=4, n:=6: true ***
+
+dplitaut:  0.0113ms
+compute (ramsey 3 4 7):  0.00025ms
+compute defcnf_opt:  4.2e-05ms
+compute defcnf_opt_sets:  0.000417ms
+number of variables: 266
+number of clauses: 736
+*** s:=3, t:=4, n:=7: true ***
+
+dplitaut:  0.0045ms
+compute (ramsey 3 4 8):  0.000209ms
+compute defcnf_opt:  0.000292ms
+compute defcnf_opt_sets:  0.0005ms
+number of variables: 490
+number of clauses: 1387
+*** s:=3, t:=4, n:=8: true ***
+
+dplitaut:  0.0172ms
+compute (ramsey 3 4 9):  0.000209ms
+compute defcnf_opt:  0ms
+compute defcnf_opt_sets:  0.000541ms
+number of variables: 834
+number of clauses: 2395
+*** s:=3, t:=4, n:=9: true ***
+
+dplitaut:  0.0108ms
+build/bin/ramsey_test  0.24s user 0.01s system 97% cpu 0.256 total
+
+===============================================================================
 
 Proving R(3, 4) = 9 is quick with the (naive) DPLL prover!
 
@@ -128,6 +207,8 @@ dplltaut:  0.0127ms
 *** s:=3, t:=4, n:=9: true ***
 
 build/bin/ramsey_test  9.25s user 0.06s system 96% cpu 9.644 total
+
+===============================================================================
 
 Refuting R(3,4) == 8 with the DP tautology prover is not possible in the
 current implementation. R(3,4) > 7 is fast but R(3,4) > 8 overflows the stack

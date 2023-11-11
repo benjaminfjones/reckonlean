@@ -45,6 +45,9 @@ def prove (impl: PFormula → Bool) (n k: Nat) : IO Unit := do
 -- #eval timeit "" (prove dptaut 4 2)  -- 5.6 s in the eval VM, 0.2 s compiled
 
 /-
+On small adder equiv. problems time DP < time DPLI < time DPLL
+On larger adder equiv. problems time DPLI < time DPLL < time DP
+
 Output:
 
 Verification with DP:
@@ -81,6 +84,22 @@ time:  2.4s
 prove 5 3: equivalent
 time:  2.78s
 
+Verification with iterative DPLL:
+=====================
+prove 3 1: equivalent
+time:  76.9ms
+prove 3 2: equivalent
+time:  60.6ms
+prove 3 3: equivalent
+time:  68ms
+prove 4 2: equivalent
+time:  357ms
+prove 4 3: equivalent
+time:  336ms
+prove 5 2: equivalent
+time:  1.71s
+prove 5 3: equivalent
+time:  1.75s
 -/
 def main : IO Unit := do
   IO.println "Verification with DP:\n====================="
@@ -92,7 +111,7 @@ def main : IO Unit := do
   timeit "time: " (prove dptaut 5 2)
   timeit "time: " (prove dptaut 5 3)
 
-  IO.println "Verification with DPLL:\n====================="
+  IO.println "\nVerification with DPLL:\n====================="
   timeit "time: " (prove dplltaut 3 1)
   timeit "time: " (prove dplltaut 3 2)
   timeit "time: " (prove dplltaut 3 3)
@@ -100,6 +119,15 @@ def main : IO Unit := do
   timeit "time: " (prove dplltaut 4 3)
   timeit "time: " (prove dplltaut 5 2)
   timeit "time: " (prove dplltaut 5 3)
+
+  IO.println "\nVerification with iteratice DPLL:\n====================="
+  timeit "time: " (prove dplitaut 3 1)
+  timeit "time: " (prove dplitaut 3 2)
+  timeit "time: " (prove dplitaut 3 3)
+  timeit "time: " (prove dplitaut 4 2)
+  timeit "time: " (prove dplitaut 4 3)
+  timeit "time: " (prove dplitaut 5 2)
+  timeit "time: " (prove dplitaut 5 3)
 
 /-
 Note: removing the `affirmative_negative_rule` from DP improves

@@ -1,4 +1,5 @@
 import ReckonLean.Common
+import ReckonLean.FPF
 import ReckonLean.Prop
 
 /-!
@@ -129,6 +130,93 @@ def dpllsat (fm: PFormula) := dpll (CNF.defcnf_opt_sets fm)
 def dplltaut (fm: PFormula) := not (dpllsat (.Not fm))
 
 
+/- ------------------------------------------------------------------------- -/
+/- The **Iterative** Davis-Putnam-Logemann-Loveland procedure.               -/
+/- ------------------------------------------------------------------------- -/
+
+open FPF
+
+inductive LitState where
+  | Guessed
+  | Deduced
+deriving Repr, BEq
+
+structure Decision where
+  literal: PFormula
+  decision: LitState
+deriving Repr
+
+-- XXX debug
+instance : ToString Decision where
+  toString := reprStr
+
+abbrev Trail := List Decision
+
+def unassigned (clauses: PCNFFormula) (trail: Trail) : List PFormula :=
+  Set.subtract all_vars dec_vars
+where
+  all_vars := Set.unions (Set.image (Set.image litabs) clauses)
+  dec_vars := Set.image (litabs ∘ Decision.literal) trail
+
+structure UnitPropState where
+  clauses: PCNFFormula
+  lookup: Func PFormula Unit
+  trail: Trail
+
+/- Apply unit propagation iteratively until reaching a fixpoint -/
+def unit_subpropagate (st: UnitPropState) : UnitPropState :=
+  -- filter the negation of defined literals out of current clauses
+  let clauses' := List.mapTR (List.filterTR (not ∘ (defined st.lookup) ∘ negate)) st.clauses
+  let newu : List PFormula → Option (List PFormula)
+    | [c] => if not (defined st.lookup c) then some [c] else none
+    | _ => none
+  match Set.unions (List.filterMap newu clauses') with
+  | [] => {st with clauses := clauses'}
+  | us =>
+    -- set all new units to Deduced
+    let trail' := List.foldl (fun t p => {literal := p, decision := .Deduced} :: t) st.trail us
+    -- define all new units in the lookup
+    let lookup' := List.foldl (fun l u => (u |-> ()) l) st.lookup us
+    unit_subpropagate {clauses := clauses', lookup := lookup', trail := trail'}
+decreasing_by sorry
+
+def unit_propagate (st: UnitPropState) : UnitPropState :=
+  let current_lookup := List.foldl (fun lk d => (d.literal |-> ()) lk) undefined st.trail
+  let st' := unit_subpropagate {st with lookup := current_lookup}
+  -- current_lookup is only used in the subpropagate function
+  {st' with lookup := undefined}
+
+/- Backtrack to the last `Guessed` literal -/
+def backtrack (trail: Trail) : Trail :=
+  match trail with
+  | [] => []
+  | d :: ds => if d.decision == .Deduced then backtrack ds else trail
+
+def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
+  let st := unit_propagate {clauses, lookup := undefined, trail}
+  if List.mem [] st.clauses then
+    match backtrack st.trail with
+    | [] => false
+    | d :: ds => if d.decision == .Guessed then
+        dpli_aux clauses ({d with decision := .Deduced} :: ds)
+      else
+        -- this is unreachable due to how `backtrack` is implemented and the `[]` case above
+        false
+  else
+    match unassigned st.clauses st.trail with
+    | [] => true  -- SAT!  TODO: extract a satisfying assignment
+    | ls =>
+        let l := (List.maximize (posneg_count st.clauses) ls).get!  -- `ls` is non-empty
+        dpli_aux clauses ({literal := l, decision := .Guessed} :: st.trail)
+decreasing_by sorry
+
+def dpli (clauses: PCNFFormula) : Bool :=
+  dpli_aux clauses []
+
+def dplisat := dpli ∘ CNF.defcnf_opt_sets
+def dplitaut := not ∘ dplisat ∘ (.Not ·)
+
+
 /- ========================================================================= -/
 /- EXAMPLES                                                                  -/
 /- ========================================================================= -/
@@ -137,7 +225,7 @@ namespace Examples
 
 /- Alises just for this section -/
 def satisfiable := dpsat
-def tautology := dptaut
+def tautology := dplitaut
 
 /- Simple equivalence proof for `nnf` and `nenf` from Prop -/
 def iff_ex := <<"(p <=> q) <=> ~(r ==> s)">>
@@ -289,8 +377,9 @@ def list_o_tautologies : List PFormula := [
 #guard List.all (List.map dptaut list_o_tautologies) id
 /- Verify all tautologies using DPLL; in #eval 0.000125 s -/
 #guard List.all (List.map dplltaut list_o_tautologies) id
+/- Verify all tautologies using iterative DPLL; in #eval 0.00029 s -/
+#guard List.all (List.map dplitaut list_o_tautologies) id
 
 -- #eval timeit "" $ pure (List.all (List.map dptaut list_o_tautologies) id)
--- #eval timeit "" $ pure (List.all (List.map dplltaut list_o_tautologies) id)
 
 end Examples

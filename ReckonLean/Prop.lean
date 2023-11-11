@@ -111,7 +111,10 @@ def psimplify : Formula α → Formula α
 /- Useful predicates and transformations for literals -/
 def negative : Formula α → Bool | .Not _ => true | _ => false
 def positive (lit: Formula α) : Bool := not (negative lit)
+/- Negate a literal -/
 def negate : Formula α → Formula α | .Not p => p | p => .Not p
+/- Absolute value of a literal -/
+def litabs : (Formula α) → Formula α | .Not p => p | q => q
 
 /- Negation normal form -/
 def nnf (fm: Formula α) : Formula α :=

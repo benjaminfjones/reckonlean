@@ -330,4 +330,7 @@ where
           false
         else aux l1 t2
 
+def image [BEq β] [Ord β] (f : α → β) (xs: List α) : List β :=
+  setify (List.map f xs)
+
 end Set
