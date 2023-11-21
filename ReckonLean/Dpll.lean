@@ -187,10 +187,19 @@ def unit_propagate (st: UnitPropState) : UnitPropState :=
   {st' with lookup := undefined}
 
 /- Backtrack to the last `Guessed` literal -/
-def backtrack (trail: Trail) : Trail :=
-  match trail with
+def backtrack : Trail → Trail
   | [] => []
-  | d :: ds => if d.decision == .Deduced then backtrack ds else trail
+  | trail@(d :: ds) => if d.decision == .Deduced then backtrack ds else trail
+
+/- `backtrack` is monotonically decreasing -/
+theorem length_backtrack : ∀ tr : Trail,
+  List.length (backtrack tr) ≤ List.length tr := by
+    intro t
+    induction t with
+    | nil => simp
+    | cons d ds ih =>
+      simp [backtrack]
+      cases d.decision <;> simp [backtrack] <;> try (apply Nat.le_succ_of_le; assumption)
 
 def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
   let st := unit_propagate {clauses, lookup := undefined, trail}
@@ -215,6 +224,48 @@ def dpli (clauses: PCNFFormula) : Bool :=
 
 def dplisat := dpli ∘ CNF.defcnf_opt_sets
 def dplitaut := not ∘ dplisat ∘ (.Not ·)
+
+
+/- ------------------------------------------------------------------------- -/
+/- The Backjumping, clause learning DPLL procedure                           -/
+/- ------------------------------------------------------------------------- -/
+
+/-!
+Backjump to the most recent decision that still leads to a conflict.
+
+Note: `p` is a literal assumed to occur in the trail before the most recent decision
+to try backjumping to.
+
+Termination is proved using a monotonicity theorem about `backtrack`
+-/
+def backjump (clauses: PCNFFormula) (p: PFormula) : Trail → Trail
+  | [] => []
+  | trail =>
+      let bt := backtrack trail
+      match hbt : bt with  -- naming hypothesis `hbt` puts the match branch assumptions in context
+      | [] => trail
+      | d :: ds =>
+        have h : List.length bt ≤ List.length trail := by
+          exact length_backtrack trail
+        if d.decision == .Guessed then
+          -- backtrack to the most recent guess, replace it with `p`, and propagate
+          let st' := unit_propagate
+            {clauses, lookup := undefined, trail := {literal := p, decision := .Guessed} :: ds}
+          -- if we still have a conflict recurse, otherwise `d` was sufficient to cause a conflict
+          if List.mem [] st'.clauses then
+            -- BEGIN inline facts to use in termination proof
+            have _ : List.length ds < List.length trail := by
+              simp_all
+              apply Nat.lt_of_succ_le; assumption
+            -- END
+            backjump clauses p ds
+          else trail
+        else
+          trail
+termination_by backjump _ _ tr => tr.length
+decreasing_by
+  simp_wf
+  assumption  -- WOOT
 
 
 /- ========================================================================= -/
