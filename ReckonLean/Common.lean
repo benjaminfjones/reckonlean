@@ -105,6 +105,9 @@ def optimize (ord: β → β → Bool) (f : α → β) : List α → Option α
 def maximize [Ord β] (f: α → β) (l: List α) : Option α := optimize (compare · · == .gt) f l
 def minimize [Ord β] (f: α → β) (l: List α) : Option α := optimize (compare · · == .lt) f l
 
+#guard maximize id [1,2,3,4] == some 4
+#guard minimize id [1,2,3,4] == some 1
+
 end List
 
 /-
@@ -332,5 +335,8 @@ where
 
 def image [BEq β] [Ord β] (f : α → β) (xs: List α) : List β :=
   setify (List.map f xs)
+
+def insert (x: α) (xs: List α) : List α :=
+  setify (x :: xs)
 
 end Set
