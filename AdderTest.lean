@@ -100,6 +100,23 @@ prove 5 2: equivalent
 time:  1.71s
 prove 5 3: equivalent
 time:  1.75s
+
+Verification with backjumping DPLL:
+=====================
+prove 3 1: equivalent
+time:  84.1ms
+prove 3 2: equivalent
+time:  84.7ms
+prove 3 3: equivalent
+time:  92.2ms
+prove 4 2: equivalent
+time:  602ms
+prove 4 3: equivalent
+time:  594ms
+prove 5 2: equivalent
+time:  5.25s
+prove 5 3: equivalent
+time:  5.37s
 -/
 def main : IO Unit := do
   IO.println "Verification with DP:\n====================="
@@ -120,7 +137,7 @@ def main : IO Unit := do
   timeit "time: " (prove dplltaut 5 2)
   timeit "time: " (prove dplltaut 5 3)
 
-  IO.println "\nVerification with iteratice DPLL:\n====================="
+  IO.println "\nVerification with iterative DPLL:\n====================="
   timeit "time: " (prove dplitaut 3 1)
   timeit "time: " (prove dplitaut 3 2)
   timeit "time: " (prove dplitaut 3 3)
@@ -129,6 +146,14 @@ def main : IO Unit := do
   timeit "time: " (prove dplitaut 5 2)
   timeit "time: " (prove dplitaut 5 3)
 
+  IO.println "\nVerification with backjumping DPLL:\n====================="
+  timeit "time: " (prove dplbtaut 3 1)
+  timeit "time: " (prove dplbtaut 3 2)
+  timeit "time: " (prove dplbtaut 3 3)
+  timeit "time: " (prove dplbtaut 4 2)
+  timeit "time: " (prove dplbtaut 4 3)
+  timeit "time: " (prove dplbtaut 5 2)
+  timeit "time: " (prove dplbtaut 5 3)
 /-
 Note: removing the `affirmative_negative_rule` from DP improves
 performance slightly (~20%) in these problems:

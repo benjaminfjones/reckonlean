@@ -267,6 +267,38 @@ decreasing_by
   simp_wf
   assumption  -- WOOT
 
+def dplb_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
+  let st := unit_propagate {clauses, lookup := undefined, trail}
+  -- conflict
+  if List.mem [] st.clauses then
+    match backtrack trail with
+    | {literal := p, decision := .Guessed} :: tt =>
+      -- backjump to the most recent decision literal that entails a conflict
+      let trail' := backjump clauses p tt
+      -- gather all decision literals { d1 ... dn } up to the backjumped point
+      let declits := List.filter (fun {literal := _, decision := d} => d == .Guessed) trail'
+      -- learned conflict clause is (¬ p ∨ ¬ d1 ∨ ... ∨ ¬ dn)
+      -- let conflict := Set.insert (negate p) (Set.image (negate ∘ (·.literal)) declits)
+      let conflict := (negate p) :: (List.map (negate ∘ (·.literal)) declits)
+      -- dbg_trace s!"conflict: {CNF.print_cnf_formula_sets [conflict]}"
+      -- dplb_aux (conflict :: clauses) ({literal := negate p, decision := .Deduced} :: trail')
+      dplb_aux clauses ({literal := negate p, decision := .Deduced} :: trail')
+    | _ => false  -- really only [], since backtrack either returns [] or a list with head Guessed
+  else
+    match unassigned clauses st.trail with
+    | [] => true  -- TODO: return a model
+    | ls => let l := (List.maximize (posneg_count st.clauses) ls).get!  -- ls is non-empty
+            dplb_aux clauses ({literal := l, decision := .Guessed} :: st.trail)
+-- termination_by length of {unassigned literals in trail}
+decreasing_by sorry
+
+/- DPLL with backjumping and simple clause learning -/
+def dplb (clauses: PCNFFormula) : Bool :=
+  dplb_aux clauses []
+
+def dplbsat := dplb ∘ CNF.defcnf_opt_sets
+def dplbtaut := not ∘ dplbsat ∘ (.Not ·)
+
 
 /- ========================================================================= -/
 /- EXAMPLES                                                                  -/
@@ -430,7 +462,9 @@ def list_o_tautologies : List PFormula := [
 #guard List.all (List.map dplltaut list_o_tautologies) id
 /- Verify all tautologies using iterative DPLL; in #eval 0.00029 s -/
 #guard List.all (List.map dplitaut list_o_tautologies) id
+/- Verify all tautologies using backjumping DPLL; in #eval 0.00025 s -/
+#guard List.all (List.map dplbtaut list_o_tautologies) id
 
--- #eval timeit "" $ pure (List.all (List.map dptaut list_o_tautologies) id)
+-- #eval timeit "" $ pure (List.all (List.map dplbtaut list_o_tautologies) id)
 
 end Examples
