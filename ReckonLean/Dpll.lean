@@ -204,15 +204,15 @@ theorem length_backtrack : ∀ tr : Trail,
 def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
   let st := unit_propagate {clauses, lookup := undefined, trail}
   if List.mem [] st.clauses then
-    match backtrack st.trail with
+    match backtrack trail with
     | [] => false
     | d :: ds => if d.decision == .Guessed then
-        dpli_aux clauses ({d with decision := .Deduced} :: ds)
+        dpli_aux clauses ({literal := negate d.literal, decision := .Deduced} :: ds)
       else
         -- this is unreachable due to how `backtrack` is implemented and the `[]` case above
         false
   else
-    match unassigned st.clauses st.trail with
+    match unassigned clauses st.trail with
     | [] => true  -- SAT!  TODO: extract a satisfying assignment
     | ls =>
         let l := (List.maximize (posneg_count st.clauses) ls).get!  -- `ls` is non-empty
