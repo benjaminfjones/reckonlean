@@ -49,7 +49,7 @@ def instrumented_prove_ramsey_3_4 : IO Unit :=
     let _ <- List.mapM (pres 3 4 ·) (List.range_offset 1 9)
 
 def prove_ramsey_3_4 : IO Unit :=
-  let prove (s t n: Nat) : Bool := dplitaut (ramsey s t n)
+  let prove (s t n: Nat) : Bool := dplbtaut (ramsey s t n)
   do
     IO.println "\nRamsey instance: prove R(3, 4) = 9\n=================================="
     let _ <- List.mapM

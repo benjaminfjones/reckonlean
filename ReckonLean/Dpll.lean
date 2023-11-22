@@ -238,30 +238,25 @@ to try backjumping to.
 
 Termination is proved using a monotonicity theorem about `backtrack`
 -/
-def backjump (clauses: PCNFFormula) (p: PFormula) : Trail → Trail
-  | [] => []
-  | trail =>
-      let bt := backtrack trail
-      match hbt : bt with  -- naming hypothesis `hbt` puts the match branch assumptions in context
-      | [] => trail
-      | d :: ds =>
-        have h : List.length bt ≤ List.length trail := by
-          exact length_backtrack trail
-        if d.decision == .Guessed then
-          -- backtrack to the most recent guess, replace it with `p`, and propagate
-          let st' := unit_propagate
-            {clauses, lookup := undefined, trail := {literal := p, decision := .Guessed} :: ds}
-          -- if we still have a conflict recurse, otherwise `d` was sufficient to cause a conflict
-          if List.mem [] st'.clauses then
-            -- BEGIN inline facts to use in termination proof
-            have _ : List.length ds < List.length trail := by
-              simp_all
-              apply Nat.lt_of_succ_le; assumption
-            -- END
-            backjump clauses p ds
-          else trail
-        else
-          trail
+def backjump (clauses: PCNFFormula) (p: PFormula) (trail: Trail) : Trail :=
+  match hbt : backtrack trail with  -- naming hypothesis `hbt` puts the match branch assumptions in context
+  | {literal := _, decision := .Guessed} :: tt =>
+    -- fact to use in termination proof
+    have _ : List.length (backtrack trail) ≤ List.length trail := length_backtrack trail
+    -- backtrack to the most recent guess, replace it with `p`, and propagate
+    let st := unit_propagate
+      {clauses, lookup := undefined, trail := {literal := p, decision := .Guessed} :: tt}
+    -- if we still have a conflict recurse, otherwise `d` was sufficient to cause a conflict
+    if List.mem [] st.clauses then
+      -- BEGIN fact to use in termination proof
+      have _ : List.length tt < List.length trail := by
+        simp_all
+        apply Nat.lt_of_succ_le; assumption
+      -- END
+      backjump clauses p tt
+    else
+      trail
+  | _ => trail
 termination_by backjump _ _ tr => tr.length
 decreasing_by
   simp_wf
