@@ -146,9 +146,10 @@ structure Decision where
   decision: LitState
 deriving Repr
 
--- XXX debug
 instance : ToString Decision where
-  toString := reprStr
+  toString d :=
+    let marker := if d.decision == .Guessed then "|" else ""
+    s!"{marker}{print_qliteral print_prp d.literal}"
 
 abbrev Trail := List Decision
 
@@ -164,7 +165,7 @@ structure UnitPropState where
   trail: Trail
 
 /- Apply unit propagation iteratively until reaching a fixpoint -/
-def unit_subpropagate (st: UnitPropState) : UnitPropState :=
+def unit_subpropagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
   -- filter the negation of defined literals out of current clauses
   let clauses' := List.mapTR (List.filterTR (not ∘ (defined st.lookup) ∘ negate)) st.clauses
   let newu : List PFormula → Option (List PFormula)
@@ -174,15 +175,16 @@ def unit_subpropagate (st: UnitPropState) : UnitPropState :=
   | [] => {st with clauses := clauses'}
   | us =>
     -- set all new units to Deduced
+    -- dbg_trace s!"{msg}: unit_prop: deduced new units = {List.map (print_qliteral print_prp) us}"
     let trail' := List.foldl (fun t p => {literal := p, decision := .Deduced} :: t) st.trail us
     -- define all new units in the lookup
     let lookup' := List.foldl (fun l u => (u |-> ()) l) st.lookup us
-    unit_subpropagate {clauses := clauses', lookup := lookup', trail := trail'}
+    unit_subpropagate msg {clauses := clauses', lookup := lookup', trail := trail'}
 decreasing_by sorry
 
-def unit_propagate (st: UnitPropState) : UnitPropState :=
+def unit_propagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
   let current_lookup := List.foldl (fun lk d => (d.literal |-> ()) lk) undefined st.trail
-  let st' := unit_subpropagate {st with lookup := current_lookup}
+  let st' := unit_subpropagate msg {st with lookup := current_lookup}
   -- current_lookup is only used in the subpropagate function
   {st' with lookup := undefined}
 
@@ -202,7 +204,7 @@ theorem length_backtrack : ∀ tr : Trail,
       cases d.decision <;> simp [backtrack] <;> try (apply Nat.le_succ_of_le; assumption)
 
 def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
-  let st := unit_propagate {clauses, lookup := undefined, trail}
+  let st := unit_propagate "dpli" {clauses, lookup := undefined, trail}
   if List.mem [] st.clauses then
     match backtrack trail with
     | [] => false
@@ -225,6 +227,25 @@ def dpli (clauses: PCNFFormula) : Bool :=
 def dplisat := dpli ∘ CNF.defcnf_opt_sets
 def dplitaut := not ∘ dplisat ∘ (.Not ·)
 
+def ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
+/-
+["p", "p_1"]
+["p_1", "~q", "~r"]
+["q", "~p_1"]
+["r", "~p_1"]
+["~p", "~r"]
+
+dpli: decide p_1
+unit_prop: deduced = [[q, r]]
+unit_prop: deduced = [[~p]]
+-/
+#eval dplisat ex1
+
+-- from https://en.wikipedia.org/wiki/Conflict-driven_clause_learning
+def ex2 := <<"(x1 ∨ x4) ∧ (x1 ∨ ~x3 ∨ ~x8) ∧ (x1 ∨ x8 ∨ x12) ∧ (x2 ∨ x11) ∧ (~x7 ∨ ~x3 ∨ x9) ∧ (~x7 ∨ x8 ∨ ~x9) ∧ (x7 ∨ x8 ∨ ~x10) ∧ (x7 ∨ x10 ∨ ~x12)">>
+#guard dplisat ex2
+#guard not (dplitaut ex2)
+
 
 /- ------------------------------------------------------------------------- -/
 /- The Backjumping, clause learning DPLL procedure                           -/
@@ -244,8 +265,7 @@ def backjump (clauses: PCNFFormula) (p: PFormula) (trail: Trail) : Trail :=
     -- fact to use in termination proof
     have _ : List.length (backtrack trail) ≤ List.length trail := length_backtrack trail
     -- backtrack to the most recent guess, replace it with `p`, and propagate
-    let st := unit_propagate
-      {clauses, lookup := undefined, trail := {literal := p, decision := .Guessed} :: tt}
+    let st := unit_propagate "bj" {clauses, lookup := undefined, trail := {literal := p, decision := .Guessed} :: tt}
     -- if we still have a conflict recurse, otherwise `d` was sufficient to cause a conflict
     if List.mem [] st.clauses then
       -- BEGIN fact to use in termination proof
@@ -262,37 +282,208 @@ decreasing_by
   simp_wf
   assumption  -- WOOT
 
-def dplb_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
-  let st := unit_propagate {clauses, lookup := undefined, trail}
+def dplb_aux (learn: Bool) (clauses: PCNFFormula) (trail: Trail) : Bool :=
+  -- dbg_trace s!"====\ndplb: starting trail = {trail}"
+  let st := unit_propagate "dplb" {clauses, lookup := undefined, trail}
   -- conflict
   if List.mem [] st.clauses then
+    -- dbg_trace s!"dplb: deduced a conflict, starting backjump"
     match backtrack trail with
     | {literal := p, decision := .Guessed} :: tt =>
       -- backjump to the most recent decision literal that entails a conflict
       let trail' := backjump clauses p tt
+      -- dbg_trace s!"dplb: backjump to {trail'}"
+      -- dbg_trace s!"dplb: backtrack distance = {trail.length - (backtrack trail).length}"
+      -- dbg_trace s!"dplb: backjump distance = {trail.length - trail'.length - 1}"
       -- gather all decision literals { d1 ... dn } up to the backjumped point
-      let declits := List.filter (fun {literal := _, decision := d} => d == .Guessed) trail'
-      -- learned conflict clause is (¬ p ∨ ¬ d1 ∨ ... ∨ ¬ dn)
-      -- let conflict := Set.insert (negate p) (Set.image (negate ∘ (·.literal)) declits)
-      let conflict := (negate p) :: (List.map (negate ∘ (·.literal)) declits)
-      -- dbg_trace s!"conflict: {CNF.print_cnf_formula_sets [conflict]}"
-      -- dplb_aux (conflict :: clauses) ({literal := negate p, decision := .Deduced} :: trail')
-      dplb_aux clauses ({literal := negate p, decision := .Deduced} :: trail')
+      if (trail'.length + 1) == (backtrack trail).length || not learn then
+        dplb_aux learn clauses ({literal := negate p, decision := .Deduced} :: trail')
+      else
+        let declits := List.filter (fun {literal := _, decision := d} => d == .Guessed) trail'
+        -- learned conflict clause is (¬ p ∨ ¬ d1 ∨ ... ∨ ¬ dn)
+        let conflict := Set.insert (negate p) (Set.image (negate ∘ (·.literal)) declits)
+        -- dbg_trace s!"dplb: |bt trail| = {(backtrack trail).length}"
+        -- dbg_trace s!"dplb: |conflict clause| = {conflict.length}"
+        -- dbg_trace s!"dplb: conflict: {CNF.print_cnf_formula_sets [conflict]}"
+        -- dbg_trace s!"dplb: deduce {print_pf (negate p)}"
+        dplb_aux learn (conflict :: clauses) ({literal := negate p, decision := .Deduced} :: trail')
     | _ => false  -- really only [], since backtrack either returns [] or a list with head Guessed
   else
+    -- dbg_trace s!"dplb: deduce new trail {st.trail}"
     match unassigned clauses st.trail with
     | [] => true  -- TODO: return a model
     | ls => let l := (List.maximize (posneg_count st.clauses) ls).get!  -- ls is non-empty
-            dplb_aux clauses ({literal := l, decision := .Guessed} :: st.trail)
+            dplb_aux learn clauses ({literal := l, decision := .Guessed} :: st.trail)
+    -- uncomment to use trivial decision literal selection
+    -- | l :: _ =>
+      -- dbg_trace s!"dplb: guess {print_pf l}"
+      -- dplb_aux clauses ({literal := l, decision := .Guessed} :: st.trail)
 -- termination_by length of {unassigned literals in trail}
 decreasing_by sorry
 
-/- DPLL with backjumping and simple clause learning -/
+/- DPLL with backjumping without clause learning -/
 def dplb (clauses: PCNFFormula) : Bool :=
-  dplb_aux clauses []
+  dplb_aux false clauses []
 
 def dplbsat := dplb ∘ CNF.defcnf_opt_sets
 def dplbtaut := not ∘ dplbsat ∘ (.Not ·)
+
+/- DPLL with backjumping and simple clause learning -/
+def dplb' (clauses: PCNFFormula) : Bool :=
+  dplb_aux true clauses []
+
+def dplb'sat := dplb ∘ CNF.defcnf_opt_sets
+def dplb'taut := not ∘ dplbsat ∘ (.Not ·)
+
+-- Running example from the Handbook
+-- `formula := (~p1 ∨ ~p10 ∨ p11) ∧ (~p1 ∨ ~p10 ∨ ~p11)`
+--
+-- suppose we've guessed `true` for p1 ... p10 and then applied unit_prop:
+-- unit_prop ==> (p11) ∧ (~p11)
+-- unit_prop ==> xxx conflict
+-- backtrack ==> trail: p1 ... p10, let `p := p10`, `tt := p1 ... p9`
+-- backjump formula p10 [p1 ... p9]
+--   * backtrack [p1 ... p9] ==> p1 ... p9 (unchanged)
+--   * unit_prop [p1 ... p8 p10] ==> (p11) ∧ (~p11)`
+--                               ==> xxx conflict
+--                               ==> recurse backjump formula p10 [p1 ... p8]
+--   * eventually get to: backjump formula p10 [p1]
+--      ==> unit_prop [p10]  ==> no conflict ==> return [p1]
+-- declits := [p1]
+-- conflict := [~p1, ~p10]
+-- recurse dplb
+
+-- w is p10, z is p11 in above example
+def p1p10_ex :=
+  <<"(~p1 ∨ ~w ∨ z) ∧ (~p1 ∨ ~w ∨ ~z) ∧ (p2 ∨ p3 ∨ p4 ∨ p5 ∨ p6 ∨ p7 ∨ p8 ∨ p9)">>
+/-
+A gory and completely unneccessary debug trace for p1p10_ex. The trace was generated
+using a completely trivial decision literal selection which forces deciding p1, p2, ...
+p9, p10 in order, then backjumping to p1, etc.
+
+====
+dplb: starting trail = []
+dplb: deduce new trail []
+dplb: guess <<p1>>
+====
+dplb: starting trail = [|p1]
+dplb: deduce new trail [|p1]
+dplb: guess <<p2>>
+====
+dplb: starting trail = [|p2, |p1]
+dplb: deduce new trail [|p2, |p1]
+dplb: guess <<p3>>
+====
+dplb: starting trail = [|p3, |p2, |p1]
+dplb: deduce new trail [|p3, |p2, |p1]
+dplb: guess <<p4>>
+====
+dplb: starting trail = [|p4, |p3, |p2, |p1]
+dplb: deduce new trail [|p4, |p3, |p2, |p1]
+dplb: guess <<p5>>
+====
+dplb: starting trail = [|p5, |p4, |p3, |p2, |p1]
+dplb: deduce new trail [|p5, |p4, |p3, |p2, |p1]
+dplb: guess <<p6>>
+====
+dplb: starting trail = [|p6, |p5, |p4, |p3, |p2, |p1]
+dplb: deduce new trail [|p6, |p5, |p4, |p3, |p2, |p1]
+dplb: guess <<p7>>
+====
+dplb: starting trail = [|p7, |p6, |p5, |p4, |p3, |p2, |p1]
+dplb: deduce new trail [|p7, |p6, |p5, |p4, |p3, |p2, |p1]
+dplb: guess <<p8>>
+====
+dplb: starting trail = [|p8, |p7, |p6, |p5, |p4, |p3, |p2, |p1]
+dplb: deduce new trail [|p8, |p7, |p6, |p5, |p4, |p3, |p2, |p1]
+dplb: guess <<p9>>
+====
+dplb: starting trail = [|p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, |p1]
+dplb: deduce new trail [|p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, |p1]
+dplb: guess <<w>>
+====
+dplb: starting trail = [|w, |p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, |p1]
+dplb: unit_prop: deduced new units = [z, ~z]
+bj: try deducing conflict from [|w, |p8, |p7, |p6, |p5, |p4, |p3, |p2, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w, |p7, |p6, |p5, |p4, |p3, |p2, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w, |p6, |p5, |p4, |p3, |p2, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w, |p5, |p4, |p3, |p2, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w, |p4, |p3, |p2, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w, |p3, |p2, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w, |p2, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w, |p1]
+bj: unit_prop: deduced new units = [z, ~z]
+bj: found conflict!
+bj: try deducing conflict from [|w]
+bj: no conflict!
+bj: # decision jumps 8
+dplb: backjump to [|p1]
+dplb: backtrack distance = 0
+dplb: backjump distance = 8
+dplb: |bt trail| = 10
+dplb: |conflict clause| = 2
+dplb: conflict: [[~p1, ~w]]
+dplb: deduce <<~w>>
+====
+dplb: starting trail = [~w, |p1]
+dplb: deduce new trail [~w, |p1]
+dplb: guess <<p2>>
+====
+dplb: starting trail = [|p2, ~w, |p1]
+dplb: deduce new trail [|p2, ~w, |p1]
+dplb: guess <<p3>>
+====
+dplb: starting trail = [|p3, |p2, ~w, |p1]
+dplb: deduce new trail [|p3, |p2, ~w, |p1]
+dplb: guess <<p4>>
+====
+dplb: starting trail = [|p4, |p3, |p2, ~w, |p1]
+dplb: deduce new trail [|p4, |p3, |p2, ~w, |p1]
+dplb: guess <<p5>>
+====
+dplb: starting trail = [|p5, |p4, |p3, |p2, ~w, |p1]
+dplb: deduce new trail [|p5, |p4, |p3, |p2, ~w, |p1]
+dplb: guess <<p6>>
+====
+dplb: starting trail = [|p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: deduce new trail [|p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: guess <<p7>>
+====
+dplb: starting trail = [|p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: deduce new trail [|p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: guess <<p8>>
+====
+dplb: starting trail = [|p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: deduce new trail [|p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: guess <<p9>>
+====
+dplb: starting trail = [|p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: deduce new trail [|p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: guess <<z>>
+====
+dplb: starting trail = [|z, |p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+dplb: deduce new trail [|z, |p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
+
+-/
+#eval dplbsat p1p10_ex
+
+-- from https://en.wikipedia.org/wiki/Conflict-driven_clause_learning
+#guard dplbsat ex2
+#guard not (dplbtaut ex2)
 
 
 /- ========================================================================= -/

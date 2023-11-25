@@ -117,43 +117,52 @@ prove 5 2: equivalent
 time:  5.25s
 prove 5 3: equivalent
 time:  5.37s
+
+Verification with backjumping and learning DPLL:
+=====================
+prove 5 3: equivalent
+time:  2.58s
 -/
 def main : IO Unit := do
   IO.println "Verification with DP:\n====================="
-  timeit "time: " (prove dptaut 3 1)
-  timeit "time: " (prove dptaut 3 2)
-  timeit "time: " (prove dptaut 3 3)
-  timeit "time: " (prove dptaut 4 2)
-  timeit "time: " (prove dptaut 4 3)
-  timeit "time: " (prove dptaut 5 2)
+  -- timeit "time: " (prove dptaut 3 1)
+  -- timeit "time: " (prove dptaut 3 2)
+  -- timeit "time: " (prove dptaut 3 3)
+  -- timeit "time: " (prove dptaut 4 2)
+  -- timeit "time: " (prove dptaut 4 3)
+  -- timeit "time: " (prove dptaut 5 2)
   timeit "time: " (prove dptaut 5 3)
 
   IO.println "\nVerification with DPLL:\n====================="
-  timeit "time: " (prove dplltaut 3 1)
-  timeit "time: " (prove dplltaut 3 2)
-  timeit "time: " (prove dplltaut 3 3)
-  timeit "time: " (prove dplltaut 4 2)
-  timeit "time: " (prove dplltaut 4 3)
-  timeit "time: " (prove dplltaut 5 2)
+  -- timeit "time: " (prove dplltaut 3 1)
+  -- timeit "time: " (prove dplltaut 3 2)
+  -- timeit "time: " (prove dplltaut 3 3)
+  -- timeit "time: " (prove dplltaut 4 2)
+  -- timeit "time: " (prove dplltaut 4 3)
+  -- timeit "time: " (prove dplltaut 5 2)
   timeit "time: " (prove dplltaut 5 3)
 
   IO.println "\nVerification with iterative DPLL:\n====================="
-  timeit "time: " (prove dplitaut 3 1)
-  timeit "time: " (prove dplitaut 3 2)
-  timeit "time: " (prove dplitaut 3 3)
-  timeit "time: " (prove dplitaut 4 2)
-  timeit "time: " (prove dplitaut 4 3)
-  timeit "time: " (prove dplitaut 5 2)
+  -- timeit "time: " (prove dplitaut 3 1)
+  -- timeit "time: " (prove dplitaut 3 2)
+  -- timeit "time: " (prove dplitaut 3 3)
+  -- timeit "time: " (prove dplitaut 4 2)
+  -- timeit "time: " (prove dplitaut 4 3)
+  -- timeit "time: " (prove dplitaut 5 2)
   timeit "time: " (prove dplitaut 5 3)
 
   IO.println "\nVerification with backjumping DPLL:\n====================="
-  timeit "time: " (prove dplbtaut 3 1)
-  timeit "time: " (prove dplbtaut 3 2)
-  timeit "time: " (prove dplbtaut 3 3)
-  timeit "time: " (prove dplbtaut 4 2)
-  timeit "time: " (prove dplbtaut 4 3)
-  timeit "time: " (prove dplbtaut 5 2)
+  -- timeit "time: " (prove dplbtaut 3 1)
+  -- timeit "time: " (prove dplbtaut 3 2)
+  -- timeit "time: " (prove dplbtaut 3 3)
+  -- timeit "time: " (prove dplbtaut 4 2)
+  -- timeit "time: " (prove dplbtaut 4 3)
+  -- timeit "time: " (prove dplbtaut 5 2)
   timeit "time: " (prove dplbtaut 5 3)
+
+  IO.println "\nVerification with backjumping and learning DPLL:\n====================="
+  timeit "time: " (prove dplb'taut 5 3)
+
 /-
 Note: removing the `affirmative_negative_rule` from DP improves
 performance slightly (~20%) in these problems:
