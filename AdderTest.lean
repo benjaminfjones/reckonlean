@@ -28,7 +28,22 @@ def mk_carryselect_ripple_equivalence (n k: Nat) : PFormula :=
       (conjoin (fun i => .Iff (s i) (s2 i)) (List.range_offset 0 (n-1)))
     )
 
--- #eval List.length (atoms (mk_carryselect_ripple_equivalence 4 2))  -- 39
+def ex_4_2 := mk_carryselect_ripple_equivalence 4 2
+-- 39 variables
+#eval List.length (atoms ex_4_2)
+-- 400 clauses
+#eval List.length (CNF.defcnf_opt_sets ex_4_2)
+-- 423 clauses for the equivalence proof
+#eval List.length (CNF.defcnf_opt_sets (.Not ex_4_2))
+
+def ex_5_3 := mk_carryselect_ripple_equivalence 5 3
+-- 48 variables
+#eval List.length (atoms ex_5_3)
+-- 491 clauses
+#eval List.length (CNF.defcnf_opt_sets ex_5_3)
+-- 517 clauses for the equivalence proof
+#eval List.length (CNF.defcnf_opt_sets (.Not ex_5_3))
+
 
 /-
 Prove the logical equivalence of `carryselect n k` and `ripplecarry n` using the
@@ -40,9 +55,6 @@ def prove (impl: PFormula → Bool) (n k: Nat) : IO Unit := do
   IO.print s!"prove {n} {k}: "
   let res := prove_equiv impl n k
   IO.println (if res then "equivalent" else "not equivalent")
-
--- #eval timeit "" (prove dptaut 3 2)  -- 1.1 s in the eval VM, 0.06 s compiled
--- #eval timeit "" (prove dptaut 4 2)  -- 5.6 s in the eval VM, 0.2 s compiled
 
 /-
 On small adder equiv. problems time DP < time DPLI < time DPLL
