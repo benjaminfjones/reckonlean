@@ -42,34 +42,10 @@ namespace List
   example : distinct_pairs [0, 1] = [(0, 1)] := by rfl
   example : distinct_pairs [0] = [] := by rfl
 
-  /- TODO: prove termination -/
-  def range_from (i j: Int) : List Int :=
-    if j < i then [] else i :: range_from (i+1) j
-  termination_by range_from i j => j - i + 1
-  decreasing_by
-    sorry
-/- Attempt 1 w/ Nat
-  decreasing_by
-    simp_wf
-    have hlt : ¬ j < i := by assumption
-    have hle : j ≥ i := Nat.ge_of_not_lt hlt
-    have hiplo : i = (i + 1) - 1 := by
-      rw [Nat.add_sub_cancel]
-    conv =>
-      rhs
-      rw [hiplo]
-    /- ⊢ j - (i + 1) + 1 < j - (i + 1 - 1) + 1 -/
-    sorry
--/
-/- Attempt 1 w/ Int, no Int lemmas available! -/
-
-  example : range_from 1 4 = [1, 2, 3, 4] := by rfl
-
   /-
   `range_offset i n` has `n` elements and starts at `i`.
 
-  This has a different API from `range_from` that computes the same function,
-  with termination proof!
+  Termination is proved.
   -/
   def range_offset (i : Nat) : Nat → List Nat
     | 0 => []
@@ -79,16 +55,19 @@ namespace List
     simp_wf
     apply Nat.lt_succ_self
 
-  #eval range_offset 1 4
   example : range_offset 1 4 = [1, 2, 3, 4] := by rfl
 
-  /- A provably terminating version of `range_from` whose definitional equality
-     works out conveniently! -/
-  def range_from' (i j: Int) : List Int :=
+  /- Computes the range of integers from `i` to `j` inclusive. -/
+  def range_from (i j: Int) : List Int :=
     if j < i then [] else map (fun x => Int.ofNat x + i) $ range_offset 0 (j-i+1).natAbs
 
-  example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
-  example : range_from' 1 4 = [1, 2, 3, 4] := by rfl
+  def range_from_nat (i j: Nat) : List Nat :=
+    if j < i then [] else map (fun x => x + i) $ range_offset 0 (j-i+1)
+
+  example : range_from 1 4 = [1, 2, 3, 4] := by rfl
+  example : range_from_nat 1 4 = [1, 2, 3, 4] := by rfl
+  example : range_from_nat 5 4 = [] := by rfl
+  example : range_from_nat 3 3 = [3] := by rfl
 
 /- ------------------------------------------------------------------------- -/
 /- Find list member that maximizes or minimizes a function.                  -/
