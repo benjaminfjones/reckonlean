@@ -67,7 +67,7 @@ def ripplecarry1 (n: Nat) (x y cin sumout: Nat → PFormula) : PFormula :=
 
 def mk_bit (pref: String) (i: Nat) : PFormula := Formula.Atom ⟨ s!"{pref}_{i}" ⟩
 
-def _mk_bit2 (pref: String) (i j: Nat) : PFormula :=
+def mk_bit2 (pref: String) (i j: Nat) : PFormula :=
   Atom ⟨ s!"{pref}_{i}_{j}" ⟩
 
 /- ------------------------------------------------------------------------- -/
