@@ -332,8 +332,8 @@ def dplbtaut := not ∘ dplbsat ∘ (.Not ·)
 def dplb' (clauses: PCNFFormula) : Bool :=
   dplb_aux true clauses []
 
-def dplb'sat := dplb ∘ CNF.defcnf_opt_sets
-def dplb'taut := not ∘ dplbsat ∘ (.Not ·)
+def dplb'sat := dplb' ∘ CNF.defcnf_opt_sets
+def dplb'taut := not ∘ dplb'sat ∘ (.Not ·)
 
 -- Running example from the Handbook
 -- `formula := (~p1 ∨ ~p10 ∨ p11) ∧ (~p1 ∨ ~p10 ∨ ~p11)`

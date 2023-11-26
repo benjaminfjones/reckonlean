@@ -55,7 +55,7 @@ def main : IO Unit := do
 
   -- suffers from learned clause explosion
   -- IO.println "DPLB': "
-  -- prove_ramsey dplb'taut s t n
+  -- timeit "dplb'" $ prove_ramsey dplb'taut s t n
 
 /-
 Ramsey instance: prove R(3, 3) = 6
