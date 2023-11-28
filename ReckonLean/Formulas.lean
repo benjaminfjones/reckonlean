@@ -49,13 +49,13 @@ General parsing of iterated infixes
 /- Parse a general infix operator, parametrized on the syntax, the constructor
    and the type and construction of the final AST.
 -/
-mutual
-partial def parse_ginfix [Inhabited α] [Inhabited β] (opsym : token) (opupdate : (α -> β) -> α -> α -> β) (sof : α -> β) (subparser : parser α) : parser β :=
+def parse_ginfix [Inhabited α] [Inhabited β] (opsym : token) (opupdate : (α -> β) -> α -> α -> β) (sof : α -> β) (subparser : parser α) : parser β :=
   fun inp =>
     let (e1, inp1) := subparser inp
     if inp1 != [] && List.head! inp1 == opsym then
       parse_ginfix opsym opupdate (opupdate sof e1) subparser (List.tail! inp1)
     else (sof e1, inp1)
+decreasing_by sorry
 /-
 termination_by parse_ginfix ops opu sof sub inp => List.length inp
 decreasing_by
@@ -64,20 +64,14 @@ decreasing_by
   sorry
 -/
 
-partial def parse_right_infix [Inhabited α] (opsym : String) (opcon : α → α -> α) (subparser : parser α) : parser α :=
+def parse_right_infix [Inhabited α] (opsym : String) (opcon : α → α -> α) (subparser : parser α) : parser α :=
   parse_ginfix opsym (fun f e1 e2 => f (opcon e1 e2)) id subparser
-end
 
-/-
-Unsed for now
+def parse_left_infix [Inhabited α] (opsym: String) (opcon: α → α → α) (subparser: parser α): parser α :=
+  parse_ginfix opsym (fun f e1 e2 => opcon (f e1) e2) id subparser
 
-   let parse_left_infix opsym opcon =
-     parse_ginfix opsym (fun f e1 e2 -> opcon (f e1, e2)) id
-
-   let parse_list opsym =
-     parse_ginfix opsym (fun f e1 e2 -> f e1 @ [ e2 ]) (fun x -> [ x ])
-
--/
+def parse_list [Inhabited α] (opsym: String) : parser α →  parser (List α) :=
+     parse_ginfix opsym (fun f e1 e2 => f e1 ++ [ e2 ]) (fun x => [ x ])
 
 /-
 -------------------------------------------------------------------------
@@ -95,14 +89,14 @@ def nextin (inp : tokens) (tok : token) : Bool := inp != [] && List.head! inp ==
 /-
 Parser a bracketed formula
 
-Note: currently, because of the panic! this will crash the compiler / lang server
-when a formula syntax error is encountered.
+This parser is expected to fail in certain situations which is handled by the Option.
 -/
-def parse_bracketed [Inhabited a] (subparser : parser a) (bra_tok : token) : parser a :=
+def parse_bracketed [Inhabited a] (subparser : parser a) (bra_tok : token) : parser (Option a) :=
   fun inp =>
     let subres := subparser inp
-    if nextin subres.snd bra_tok then (subres.fst, List.tail! subres.snd)
-    else panic! "Closing bracket expected"
+    if nextin subres.snd bra_tok then (some subres.fst, List.tail! subres.snd)
+    else (none, inp)
+    -- else panic! s!"Closing bracket '{bra_tok}' expected at {inp}; subparser got {repr subres.fst}"
 
 /-
 Parsing of formulas, parametrized by atom parser "pfn".
@@ -136,7 +130,10 @@ def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parse
     | "(" :: rest => (
         /- need to work around exceptions as control-flow -/
         match ifn vs inp with
-        | (none, _) => parse_bracketed (parse_formula iafn vs) ")" rest
+        -- XXX ifn "(forall x. ...) " leads to a panic
+        | (none, _) => match parse_bracketed (parse_formula iafn vs) ")" rest with
+          | (some res, toks) => (res, toks)
+          | (none, _) => panic! s!"parse_atomic_formula: failed to parse bracketed"
         | (some r, toks) => (r, toks))
     | "~" :: rest =>
         papply (fun p => Formula.Not p) (parse_atomic_formula (ifn, afn) vs rest)
