@@ -33,9 +33,19 @@ def lexwhile (prop : Char -> Bool) (inp: List Char) : token × List Char :=
     else ("", inp)
 termination_by lexwhile prop inp => List.length inp
 
+/- The `Char`s argument of `lexwhile` monotonically decreases -/
+theorem lexwhile_monotonic : ∀ (p : Char → Bool) (inp: List Char), (lexwhile p inp).snd.length ≤ inp.length := by
+  intro p inp
+  induction inp with
+  | nil => simp [lexwhile]
+  | cons c cs ih =>
+    simp [lexwhile]
+    cases p c <;> simp
+    exact Nat.le_succ_of_le ih
+
 /- lexer -/
 def lex (inp : List Char) : tokens :=
-  match (lexwhile space inp).snd with
+  match hlw : (lexwhile space inp).snd with
   | [] => []
   | c :: cs =>
       let prop :=
@@ -43,12 +53,17 @@ def lex (inp : List Char) : tokens :=
         else if symbolic c then symbolic
         else fun _ => false /- for punctuation we stop at one char -/
 
-      let (tok, rest) := lexwhile prop cs
-      (String.append c.toString tok) :: lex rest
+      let trest := lexwhile prop cs
+      (String.append c.toString trest.fst) :: lex trest.snd
 termination_by lex inp => List.length inp
 decreasing_by
   simp_wf
-  sorry
+  calc
+    (lexwhile prop cs).snd.length ≤ cs.length := lexwhile_monotonic prop cs
+    _ < Nat.succ (cs).length := Nat.lt_of_succ_le (Nat.le_refl _)
+    _ = (c :: cs).length := List.length_cons c cs
+    _ = (lexwhile space inp).snd.length := by rw [hlw]
+    _ ≤ inp.length := lexwhile_monotonic space inp
 
 
 /- Wrap a parser function along with the lexer -/
