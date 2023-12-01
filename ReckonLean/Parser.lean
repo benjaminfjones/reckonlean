@@ -1,14 +1,11 @@
 import ReckonLean.Common
 
-/-
 /- ------------------------------------------------------------------------- -/
-/- Common Lexer and Parser helper functions.                                 -/
+/- Lexer helper functions.                                                   -/
 /- ------------------------------------------------------------------------- -/
--/
 
 abbrev token := String
 abbrev tokens := List token
-abbrev parser (a : Type) := tokens -> a × tokens
 
 def matches_ (parent_str : String) (char : Char) : Bool :=
   let chars: List Char := parent_str.toList
@@ -66,17 +63,51 @@ decreasing_by
     _ ≤ inp.length := lexwhile_monotonic space inp
 
 
+/- ------------------------------------------------------------------------- -/
+/- Parser helper functions.                                                  -/
+/- ------------------------------------------------------------------------- -/
+
+/--
+Parser type. The usual convention applies here:
+
+* empty list corresponds to a parse error
+* a non-empty list corresponds to distinct parse results
+* if the grammar is not ambiguous, the list is singleton
+-/
+structure ParseResult (a : Type) where
+  res: List a
+
+def ParseResult.error : ParseResult a := ParseResult.mk []
+
+instance : Coe (List α) (ParseResult α) where
+  coe := ParseResult.mk
+
+-- This is not ideal since Lean is has a strict evaluation strategy, but it's fine
+-- for our purposes. The formulas given to the parser are all small and hand written. Larger
+-- formulas are generated from the AST directly.
+--
+-- TODO: use Std.Data.MLList.Basic in place of List
+instance : Monad ParseResult where
+  pure := ParseResult.mk ∘ List.pure
+  bind x f := ParseResult.mk (List.bind x.res (ParseResult.res ∘ f))
+
+instance : HAppend (ParseResult a) (ParseResult a) (ParseResult a) where
+  hAppend r1 r2 := ⟨ r1.res ++ r2.res ⟩
+
+abbrev parser (a : Type) := tokens -> ParseResult (a × tokens)
+
 /- Wrap a parser function along with the lexer -/
-def make_parser {α : Type} [Inhabited α] (pfn: parser α) (inp: String) : α :=
+def make_parser {α : Type} [Inhabited α] (pfn: parser α) (inp: String) : Option α :=
   let toks := lex inp.toList
   match pfn toks with
-  | (e, []) => e
-  | _ => panic! "unexpected trailing input"
+  | ⟨ [] ⟩ => dbg_trace "parser error"; none
+  | ⟨ [(e, [])] ⟩ => some e
+  | _ => dbg_trace "unexpected trailing input"; none
 
 
-/-
-Examples
--/
+/- ------------------------------------------------------------------------- -/
+/- Examples                                                                  -/
+/- ------------------------------------------------------------------------- -/
 
 #eval lex (String.toList "2*((var_1 + x') + 11)") == ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"]
 #eval lex (String.toList "p ∧ q")

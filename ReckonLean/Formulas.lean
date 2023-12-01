@@ -50,11 +50,11 @@ General parsing of iterated infixes
    and the type and construction of the final AST.
 -/
 def parse_ginfix [Inhabited α] [Inhabited β] (opsym : token) (opupdate : (α -> β) -> α -> α -> β) (sof : α -> β) (subparser : parser α) : parser β :=
-  fun inp =>
-    let (e1, inp1) := subparser inp
+  fun inp => do
+    let (e1, inp1) <- subparser inp
     if inp1 != [] && List.head! inp1 == opsym then
       parse_ginfix opsym opupdate (opupdate sof e1) subparser (List.tail! inp1)
-    else (sof e1, inp1)
+    else pure (sof e1, inp1)
 decreasing_by sorry
 /-
 termination_by parse_ginfix ops opu sof sub inp => List.length inp
@@ -80,23 +80,31 @@ Other general parsing combinators.
 -/
 
 /- Apply a function to a parser result -/
-def papply (f : a -> b) (r : a × tokens) : b × tokens := (f r.fst, r.snd)
-
+def papply (f : a -> b) (p: parser a) : parser b :=
+  fun inp => (fun (fm, t) => (f fm, t)) <$> p inp
 
 /- Token `tok` is next in the input stream `inp` -/
 def nextin (inp : tokens) (tok : token) : Bool := inp != [] && List.head! inp == tok
+
+/- Non-deterministic choice; apply both parsers in order and append results -/
+def nd_choose (p q : parser α) : parser α :=
+  fun inp => p inp ++ q inp
+
+/- Deterministic choice; apply both parsers in order return first result only -/
+def d_choose (p q : parser α) : parser α :=
+  fun inp => p inp ++ q inp
 
 /-
 Parser a bracketed formula
 
 This parser is expected to fail in certain situations which is handled by the Option.
 -/
-def parse_bracketed [Inhabited a] (subparser : parser a) (bra_tok : token) : parser (Option a) :=
-  fun inp =>
-    let subres := subparser inp
-    if nextin subres.snd bra_tok then (some subres.fst, List.tail! subres.snd)
-    else (none, inp)
-    -- else panic! s!"Closing bracket '{bra_tok}' expected at {inp}; subparser got {repr subres.fst}"
+def parse_bracketed [Inhabited a] (subparser : parser a) (bra_tok : token) : parser a
+  | [] => dbg_trace "parse_bracketed: unexpected end of input"; ParseResult.error
+  | _c :: inp_in_bra => do  -- consume first character that we've already peek'd
+    let subres <- subparser inp_in_bra
+    if nextin subres.snd bra_tok then pure (subres.fst, List.tail! subres.snd)
+    else dbg_trace s!"expected closing bracket: {inp_in_bra}"; ParseResult.error
 
 /-
 Parsing of formulas, parametrized by atom parser "pfn".
@@ -117,43 +125,36 @@ abbrev ctx : Type := List String
 and fisrt order logic. The `fst` is the predicate parser (or something that panics), the `snd` is
 the atomic proposition parser.
 -/
-abbrev iafn_type (α : Type) := (ctx → parser (Option (Formula α))) × (ctx → parser (Option (Formula α)))
+abbrev iafn_type (α : Type) := (ctx → parser (Formula α)) × (ctx → parser (Formula α))
 
 mutual
 def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
-  let ⟨ ifn, afn ⟩ := iafn
   fun inp =>
     match inp with
-    | [] => panic! "formula expected"
-    | "false" :: rest => (Formula.False, rest)
-    | "true" :: rest => (Formula.True, rest)
-    | "(" :: rest => (
-        /- need to work around exceptions as control-flow -/
-        match ifn vs inp with
-        -- XXX ifn "(forall x. ...) " leads to a panic
-        | (none, _) => match parse_bracketed (parse_formula iafn vs) ")" rest with
-          | (some res, toks) => (res, toks)
-          | (none, _) => panic! s!"parse_atomic_formula: failed to parse bracketed"
-        | (some r, toks) => (r, toks))
+    | [] => ParseResult.error  -- formula expected
+    | "false" :: rest => pure (Formula.False, rest)
+    | "true" :: rest => pure (Formula.True, rest)
+    | "(" :: rest =>
+        -- Try to parse an infix predicate; if that fails parse a bracketed formula
+        -- This case means that `(x < 2)` will parse as an atomic formula, but not `x < 2`
+        d_choose (iafn.fst vs) (parse_bracketed (parse_formula iafn vs) ")") inp
     | "~" :: rest =>
-        papply (fun p => Formula.Not p) (parse_atomic_formula (ifn, afn) vs rest)
+        papply (fun p => Formula.Not p) (parse_atomic_formula iafn vs) rest
     | "forall" :: x :: rest =>
         parse_quant iafn (x :: vs) (fun x p => Formula.Forall x p) x rest
     | "exists" :: x :: rest =>
         parse_quant iafn (x :: vs) (fun x p => Formula.Exists x p) x rest
-    | _ => match afn vs inp with
-           | (none, _) => panic! "parser_atomic_formula"
-           | (some r, toks) => (r, toks)
+    | _ =>
+      -- parse an atom (or "prefix atom")
+      iafn.snd vs inp
 
-def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : String → Formula α → Formula α) (x : String) : parser (Formula α) :=
-  fun inp =>
-  match inp with
-  | [] => panic! "Body of quantified term expected"
+def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : String → Formula α → Formula α) (x : String) : parser (Formula α)
+  | [] => ParseResult.error
   | y :: rest =>
       papply
         (fun fm => qcon x fm)
-        (if y == "." then parse_formula iafn vs rest
-         else parse_quant iafn (y :: vs) qcon y rest)
+        (if y == "." then parse_formula iafn vs
+         else parse_quant iafn (y :: vs) qcon y) rest
 
 def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
   parse_right_infix "<=>"
@@ -166,11 +167,6 @@ def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Form
              (fun p q => Formula.And p q)
              (parse_atomic_formula iafn vs))))
 end
-termination_by
-  /- These are obviously bollocks -/
-  parse_formula _ c => 0
-  parse_quant _ c _ _ => 0
-  parse_atomic_formula _ c => 0
 decreasing_by
   sorry
 

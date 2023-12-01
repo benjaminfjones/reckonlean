@@ -1,3 +1,5 @@
+import Std.Data.MLList.Basic
+
 namespace PolymorphicDeriving
 
   structure Foo (a: Type) where
@@ -41,3 +43,28 @@ end StringManip
 
 -- slash dot!
 #eval (· * 2) 5
+
+-- There is no Monad List instance in Prelude because `List` is eager. There is an instance for LazyList.
+#check (Monad List)  -- this is just a Type, there is no instance yet
+#check (Bind List)   -- also just a type
+
+-- see Std4 MLList, a lazy list
+#check (MLList.instMonadMLList : Monad (MLList Id))
+
+/-
+invalid `do` notation, expected type is not a monad application
+  List Nat
+You can use the `do` notation in pure code by writing `Id.run do` instead of `do`, where `Id` is the identity monad.
+-/
+-- #eval (do pure [1] : List Nat)
+
+instance : Monad List where
+  pure := List.pure
+  bind := List.bind
+
+def nondet : List Nat :=
+  [1,2,3] >>= fun a =>
+  [10, 20, 30] >>= fun b =>
+  pure (a + b)
+
+#eval nondet

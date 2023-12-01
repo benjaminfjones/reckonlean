@@ -20,28 +20,33 @@ instance : Inhabited Prp where
 abbrev PFormula := Formula Prp
 
 /- Parsing of propositional formulas -/
-def parse_propvar (_vs: ctx) : parser (Option (PFormula)) :=
+def parse_propvar (_vs: ctx) : parser (PFormula) :=
   fun inp =>
     match inp with
-    | p :: oinp => if p != "(" then (some (Formula.Atom ⟨ p ⟩), oinp) else (none, inp)
-    | _ => (none, inp)
+    | p :: oinp => if p != "(" then [(Formula.Atom (Prp.mk p), oinp)] else ParseResult.error
+    | _ => ParseResult.error
 
 /-
 Parse a prop formula
 
 Note the `inp` parser just fails since we don't expect atomic predicates
 -/
-def parse_prop_formula (inp: String) : PFormula :=
-  let ifn := fun (_ctx: ctx) (toks: tokens) => (none, toks)  /- unsed for prop logic -/
+def parse_prop_formula (inp: String) : Option PFormula :=
+  let ifn := fun _ _ => ParseResult.error  /- unsed for prop logic -/
   make_parser (parse_formula (ifn, parse_propvar) []) inp
 
 declare_syntax_cat propf
 syntax str : propf  -- strings for parse_prop_formula
 
--- auxiliary notation for translating `propf` into `term`
+/--
+Custom notation for translating `propf` into `term`.
+
+The notation won't panic the compiler / IDE if the content doesn't parse. Instead
+it returns `Formula.False`.
+-/
 syntax "<<" propf ">>" : term
 macro_rules
-| `(<<$s:str>>) => `(parse_prop_formula $s)
+| `(<<$s:str>>) => `((parse_prop_formula $s).getD .False)
 
 #guard  <<"p ∧ r">> == Formula.And (Formula.Atom ⟨"p"⟩) (Formula.Atom ⟨"r"⟩)
 #guard  <<"p ∧ (q ∨ (r ==> s))">> ==
@@ -61,6 +66,14 @@ def print_pf := print_qformula print_prp
 Examples
 -/
 
+/-
+Parse errors don't crash the compiler & IDE: warning is emitted and `none` or
+`Formula.False` is returned depending on whether the top-level parser is used or
+the custom syntax.
+-/
+#guard parse_prop_formula "p ∧" == none
+#guard <<"p ∧">> == .False  -- emits "parse error"
+
 /- round trip -/
 #guard print_pf (<<"p ∧ q">>) == "<<p ∧ q>>"
 #guard print_pf <<"forall p. p ∨ q">> == "<<forall p. p ∨ q>>"
@@ -71,7 +84,6 @@ Examples
 /- ------------------------------------------------------------------------- -/
 /- Simplification and Normal Forms                                           -/
 /- ------------------------------------------------------------------------- -/
-
 
 /- One step prop formula simplification -/
 def psimplify1 : Formula α → Formula α
