@@ -56,7 +56,7 @@ decreasing_by
   rewrite [Nat.not_beq_eq_true_eq] at h
   apply Nat.div_lt_self
   . exact Nat.zero_lt_of_ne_zero h
-  . simp
+  . apply Nat.lt_succ_of_le; apply Nat.le_refl  -- or `simp_arith`
 
 example : bitlength 0 = 0 := by rfl
 example : bitlength 1 = 1 := by rfl

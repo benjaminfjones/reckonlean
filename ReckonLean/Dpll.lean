@@ -198,10 +198,12 @@ theorem length_backtrack : ∀ tr : Trail,
   List.length (backtrack tr) ≤ List.length tr := by
     intro t
     induction t with
-    | nil => simp
+    | nil => unfold backtrack; apply Nat.le_refl
     | cons d ds ih =>
       simp [backtrack]
-      cases d.decision <;> simp [backtrack] <;> try (apply Nat.le_succ_of_le; assumption)
+      cases d.decision == .Deduced
+      . simp
+      . simp; apply Nat.le_succ_of_le; assumption
 
 def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
   let st := unit_propagate "dpli" {clauses, lookup := undefined, trail}
