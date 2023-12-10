@@ -1,5 +1,6 @@
 import ReckonLean.Common
 import ReckonLean.Formulas
+import ReckonLean.FPF
 import ReckonLean.Parser
 
 open Formula
@@ -9,7 +10,7 @@ inductive Term where
 | Var : String → Term
 -- function: name, arguments; semantics will be defined in terms of an interpretation
 | Fn : String → List Term → Term
-deriving Inhabited, Repr
+deriving BEq, Hashable, Inhabited, Repr
 open Term
 
 /-! The type of atomic predicates in a First Order Logic -/
@@ -18,9 +19,9 @@ structure Fol where
   pred : String
   -- predicate arguments
   args : List Term
-deriving Inhabited, Repr
+deriving BEq, Inhabited, Repr
 
-/- Trivial example of "x + y < z".                                           -/
+/- Trivial example of "x + y < z" -/
 #eval (Atom ⟨"<", [Fn "+" [Var "x", Var "y"], Var "z"]⟩ : Formula Fol)
 
 /- Special case of applying a subfunction to the top *terms*. -/
@@ -115,6 +116,7 @@ Formula.Or
 #eval <|"(forall x. x < 2 ==> (x < 3)) ∨ false"|>
 #eval <|"(forall x. x < 3) ∨ false"|>
 #eval <|"(x < 2 ==> false) ∨ false"|>
+#eval <|"forall x. (x = 0) ∨ (x = 1)"|>
 
 /-
 Bare predicate needs to be parenthesized?
@@ -128,3 +130,97 @@ Term.Fn "*" [Term.Fn "2" [], Term.Var "x"]
 -/
 #eval <<|"2 * x"|>>
 #eval <<|"3"|>>
+
+/- ------------------------------------------------------------------------- -/
+/- Semantics of First Order Logic                                            -/
+/- ------------------------------------------------------------------------- -/
+
+open FPF
+open Formula
+
+/--
+Interpretation
+
+* `domain` is the (finite) domain of terms
+* `func` is a (partial) function evaluator; we're not worried about arity or incorrect length arg lists
+* `pred` is a (partial) predicate evaluator
+-/
+structure Interp (α : Type) where
+  domain : List α
+  func : String → List α → α
+  pred : String → List α → Bool
+
+abbrev Valuation α := Func String α
+
+partial def termval [Inhabited α] (m: Interp α) (v: Valuation α) : Term → α
+  | Var x => apply! v x
+  | Fn f args => m.func f (List.mapTR (termval m v) args)
+
+def holds [Inhabited α] (m: Interp α) (v: Valuation α) : Formula Fol → Bool
+  | .False => false
+  | .True => true
+  | .Atom r => m.pred r.pred (List.mapTR (termval m v) r.args)
+  | .Not p => not (holds m v p)
+  | .And p q => (holds m v p) && (holds m v q)
+  | .Or p q => (holds m v p) || (holds m v q)
+  | .Imp p q => not (holds m v p) || (holds m v q)
+  | .Iff p q => (holds m v p) == (holds m v q)
+  | .Forall x p => List.all m.domain (fun (a : α) => holds m ((x |-> a) v) p)
+  | .Exists x p => List.any m.domain (fun (a : α) => holds m ((x |-> a) v) p)
+
+
+/-
+Example interpretations
+-/
+
+def bool_interp : Interp Bool := {
+  domain := [false, true],
+  func := (fun fn args =>
+    match (fn, args) with
+    | ("0", []) => false
+    | ("1", []) => true
+    | ("+", [x, y]) => not (x == y)
+    | ("*", [x, y]) => x && y
+    | _ => panic! "bool_interp: uninterpreted function")
+  pred := (fun pn args =>
+    match (pn, args) with
+    | ("=", [x, y]) => x == y
+    | _ => panic! "bool_interp: uninterpreted predicate"
+  )
+}
+
+def mod_interp (n : Nat) : Interp Nat := {
+  domain := List.range_from_nat 0 (n-1),
+  func := (fun fn args =>
+    match (fn, args) with
+    | ("0", []) => 0
+    | ("1", []) => 1 % n
+    | ("+", [x, y]) => (x + y) % n
+    | ("*", [x, y]) => (x * y) % n
+    | _ => panic! "mod_interp: uninterpreted function")
+  pred := (fun pn args =>
+    match (pn, args) with
+    | ("=", [x, y]) => x == y
+    | _ => panic! "mod_interp: uninterpreted predicate"
+  )
+}
+
+def everything_is_zero_or_one := <|"forall x. (x = 0) ∨ (x = 1)"|>
+#guard holds bool_interp undefined everything_is_zero_or_one
+#guard holds (mod_interp 2) undefined everything_is_zero_or_one
+#guard not $ holds (mod_interp 3) undefined everything_is_zero_or_one
+
+-- TODO: the final atomic predicate `x * y = 1` has to be parenthesized or else parsing fails and we get
+-- `False`:
+-- #eval <|"forall x. ~(x = 0) ==> exists y. x * y = 1"|>
+
+def every_nonzero_has_an_inverse := <|"forall x. ~(x = 0) ==> exists y. (x * y = 1)"|>
+#guard holds bool_interp undefined every_nonzero_has_an_inverse
+#guard holds (mod_interp 2) undefined every_nonzero_has_an_inverse
+#guard holds (mod_interp 3) undefined every_nonzero_has_an_inverse
+
+/- Use the semantics of `mod_interp` to determine the prime numbers up to 45 -/
+#guard List.filter
+  (fun n => holds (mod_interp n) undefined every_nonzero_has_an_inverse)
+  (List.range_from_nat 1 45) ==
+  [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43]

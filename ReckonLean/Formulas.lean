@@ -100,11 +100,11 @@ Parser a bracketed formula
 This parser is expected to fail in certain situations which is handled by the Option.
 -/
 def parse_bracketed [Inhabited a] (subparser : parser a) (bra_tok : token) : parser a
-  | [] => dbg_trace "parse_bracketed: unexpected end of input"; ParseResult.error
+  | [] => ParseResult.error
   | _c :: inp_in_bra => do  -- consume first character that we've already peek'd
     let subres <- subparser inp_in_bra
     if nextin subres.snd bra_tok then pure (subres.fst, List.tail! subres.snd)
-    else dbg_trace s!"expected closing bracket: {inp_in_bra}"; ParseResult.error
+    else ParseResult.error
 
 /-
 Parsing of formulas, parametrized by atom parser "pfn".
