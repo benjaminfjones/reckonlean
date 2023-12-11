@@ -271,18 +271,52 @@ where
 #guard intersect [1,2,3] [3, 4,5] == [3]
 #guard union [1,2,3] [1, 2, 3] == [1, 2, 3]
 
-/- Remove a set from another -/
+/-
+Remove a set from another
+
+Termination proof is similar to that of `intersect` but this time we don't
+use the simplifier at all.
+-/
 def subtract : List α → List α → List α
   | s1, s2 => subaux (setify s1) (setify s2)
 where
-  subaux
-    | [], _ => []
-    | l1, [] => l1
-    | l1@(h1 :: t1), l2@(h2 :: t2) =>
-        if h1 == h2 then subaux t1 t2
-        else if compare h1 h2 == lt then h1 :: subaux t1 l2
-        else subaux l1 t2
-  decreasing_by sorry  /- see proof for `intersect` -/
+  subaux l1 l2 := match hc : (l1, l2) with
+    | ([], _) => []
+    | (_, []) => l1
+    | (h1 :: t1, h2 :: t2) =>
+        have _ : t1.length < t1.length + 1 := Nat.lt_succ_self _
+        have _ : t2.length < t2.length + 1 := Nat.lt_succ_self _
+        have _ : t1.length < l1.length := by
+          have hl : l1 = h1 :: t1 := congrArg Prod.fst hc
+          rw [hl, List.length_cons h1 t1]
+          apply Nat.lt_succ_self
+        have _ : t2.length < l2.length := by
+          have hl : l2 = h2 :: t2 := congrArg Prod.snd hc
+          rw [hl, List.length_cons h2 t2]
+          apply Nat.lt_succ_self
+
+        if h1 == h2 then
+          have _ : t1.length + t2.length < l1.length + l2.length := by
+            apply Nat.add_lt_add
+            assumption; assumption
+
+          subaux t1 t2
+        else if compare h1 h2 == lt then
+          have _ : t1.length + l2.length < l1.length + l2.length := by
+            apply Nat.add_lt_add_right
+            assumption
+
+          h1 :: subaux t1 l2
+        else
+          have _ : l1.length + t2.length < l1.length + l2.length := by
+            apply Nat.add_lt_add_left
+            assumption
+
+          subaux l1 t2
+  termination_by subaux l1 l2 => l1.length + l2.length
+  decreasing_by
+    simp_wf
+    assumption
 
 #guard subtract [1,2,3,4] [2,3] == [1,4]
 #guard subtract [] [2,3] == []
