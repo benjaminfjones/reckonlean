@@ -182,14 +182,45 @@ def union : List α → List α → List α
   | s1, s2 => aux_union (setify s1) (setify s2)
 where
   aux_union l1 l2 :=
-    match (l1, l2) with
-    | ([], l2) => l2
-    | (l1, []) => l1
-    | (l1@(h1 :: t1), l2@(h2 :: t2)) =>
-        if h1 == h2 then h1 :: aux_union t1 t2
-        else if compare h1 h2 == lt then h1 :: aux_union t1 l2
-        else h2 :: aux_union l1 t2
-  decreasing_by sorry  -- same as the proof for `intersect.aux`
+    match hc : (l1, l2) with
+    | ([], _) => l2
+    | (_, []) => l1
+    | (h1 :: t1, h2 :: t2) =>
+        have _ : t1.length < t1.length + 1 := Nat.lt_succ_self _
+        have _ : t2.length < t2.length + 1 := Nat.lt_succ_self _
+        have _ : t1.length < l1.length := by
+          have hl : l1 = h1 :: t1 := congrArg Prod.fst hc
+          rw [hl, List.length_cons h1 t1]
+          apply Nat.lt_succ_self
+        have _ : t2.length < l2.length := by
+          have hl : l2 = h2 :: t2 := congrArg Prod.snd hc
+          rw [hl, List.length_cons h2 t2]
+          apply Nat.lt_succ_self
+
+        if h1 == h2 then
+          have _ : t1.length + t2.length < l1.length + l2.length := by
+            apply Nat.add_lt_add
+            assumption; assumption
+
+          h1 :: aux_union t1 t2
+        else if compare h1 h2 == lt then
+          have _ : t1.length + l2.length < l1.length + l2.length := by
+            apply Nat.add_lt_add_right
+            assumption
+
+          h1 :: aux_union t1 l2
+        else
+          have _ : l1.length + t2.length < l1.length + l2.length := by
+            apply Nat.add_lt_add_left
+            assumption
+
+          h2 :: aux_union l1 t2
+  termination_by aux_union l1 l2 => l1.length + l2.length
+  decreasing_by
+    -- TODO: figure out how to share common parts of the termination proofs of
+    -- `union`, `intersect`, and `allsubsets`
+    simp_wf
+    assumption
 
 #guard union [1,2,3] [4,5] == [1, 2, 3, 4, 5]
 #guard union [1,2,3] [1, 2, 3] == [1, 2, 3]
