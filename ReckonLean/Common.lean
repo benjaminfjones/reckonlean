@@ -284,6 +284,10 @@ where
         else subaux l1 t2
   decreasing_by sorry  /- see proof for `intersect` -/
 
+#guard subtract [1,2,3,4] [2,3] == [1,4]
+#guard subtract [] [2,3] == []
+#guard subtract [2,3] [] == [2,3]
+
 /- Strict subset predicate -/
 def subset : List α → List α → Bool
   | l1, l2 => aux (setify l1) (setify l2)

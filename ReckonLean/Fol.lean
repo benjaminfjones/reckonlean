@@ -224,3 +224,34 @@ def every_nonzero_has_an_inverse := <|"forall x. ~(x = 0) ==> exists y. (x * y =
   (fun n => holds (mod_interp n) undefined every_nonzero_has_an_inverse)
   (List.range_from_nat 1 45) ==
   [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43]
+
+
+/- The set of (free; they're all free!) variables in a term -/
+partial def free_vars_term : Term → List String
+  | Var x => [x]
+  | Fn _ args => Set.unions (List.mapTR free_vars_term args)
+
+/- The set of **all** variables in a formula -/
+def vars : Formula Fol → List String
+  | .False | .True => []
+  | .Atom ⟨ _, args ⟩ => Set.unions (List.mapTR free_vars_term args)
+  | .Not p => vars p
+  | .And p q | .Or p q | .Imp p q | .Iff p q => Set.union (vars p) (vars q)
+  | .Forall x p | .Exists x p => Set.insert x (vars p)
+
+/- The set of **free** variables in a formula -/
+def free_vars : Formula Fol → List String
+  | .False | .True => []
+  | .Atom ⟨ _, args ⟩ => Set.unions (List.mapTR free_vars_term args)
+  | .Not p => free_vars p
+  | .And p q | .Or p q | .Imp p q | .Iff p q => Set.union (free_vars p) (free_vars q)
+  | .Forall x p | .Exists x p => Set.subtract (free_vars p) [x]
+
+#guard free_vars_term <<|"2 * t + s"|>> == ["s", "t"]
+#guard free_vars_term <<|"2 * 5 + 0"|>> == []  -- ground term
+#guard vars <|"(2 * t > s)"|> == ["s", "t"]
+#guard vars <|"exists t. (2 * t > s)"|> == ["s", "t"]
+#guard free_vars <|"exists t. (2 * t > s)"|> == ["s"]
+#guard free_vars <|"forall s. exists t. (2 * t > s)"|> == []  -- sentence
+#guard free_vars <|"(forall x. 0 <= x) ==> (0 <= 5)"|> == []  -- sentence
+#guard free_vars <|"(forall x. 0 <= x) ==> (0 <= a)"|> == ["a"]
