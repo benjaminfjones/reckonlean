@@ -219,17 +219,19 @@ instance {α : Type} [Ord α] : Ord (List α) where
 
 /- Return a list of all subsets of given size. -/
 def allsubsets (size: Int) (set: List α) : List (List α) :=
-  let set := setify set
-  if size <= 0 then [ [] ]
-  else if size > List.length set then []
-  else (
-      match set with
-      | [] => []
-      | s :: rest =>
-          union
-            (List.map (union [ s ]) (allsubsets (size - 1) rest))
-            (allsubsets size rest))
-decreasing_by sorry
+  aux size (setify set)
+where
+  aux sz set :=
+    if size <= 0 then [ [] ]
+    else if size > List.length set then []
+    else (
+        match set with
+        | [] => []
+        | s :: rest =>
+            union
+              (List.map (union [ s ]) (aux (size - 1) rest))
+              (aux size rest))
+  termination_by aux _ set => set.length
 
 /-
 Setify the input lists and return their intersection.
