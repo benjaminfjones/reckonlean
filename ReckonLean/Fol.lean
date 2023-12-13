@@ -280,3 +280,41 @@ def free_vars : Formula Fol → List String
 #guard free_vars <|"forall s. exists t. (2 * t > s)"|> == []  -- sentence
 #guard free_vars <|"(forall x. 0 <= x) ==> (0 <= 5)"|> == []  -- sentence
 #guard free_vars <|"(forall x. 0 <= x) ==> (0 <= a)"|> == ["a"]
+
+
+/-
+Universally generalize a first-order formula by introducing universal
+quantifiers for every free variable.
+-/
+def generalize (fm : Formula Fol) : Formula Fol := List.foldr mk_forall fm (free_vars fm)
+
+/- These two formulas aren't equal syntactically because of the order of quantification -/
+#guard print_fol (generalize <|"exists t. (2 * t > s)"|>) == "forall s. exists t. >(*(2, t), s)"
+#guard print_fol (generalize <|"(2 * t > s)"|>) == "forall s t. >(*(2, t), s)"
+
+open FPF
+
+def Term.height : Term → Nat
+  | Var _ => 0
+  | Fn f args =>
+    match args with
+    | [] => 1
+    | a :: as => (Nat.max (a.height) (Fn f as).height) + 1
+
+-- Note: the mutually recursive version of `tsubst` terminates by (mutual)
+-- structural recursion.
+mutual
+def tsubst_list (sfn: Func String Term) : List Term → List Term
+  | [] => []
+  | a :: as => (tsubst sfn a) :: tsubst_list sfn as
+
+def tsubst (sfn: Func String Term) : Term → Term
+  | Var x => applyd sfn Var x
+  | Fn f [] => Fn f []
+  | Fn f args => Fn f (tsubst_list sfn args)
+end
+
+-- subst s |-> x+1 producing a new term with a different free variable
+#guard toString (tsubst ("s" |=> <<|"x+1"|>>) <<|"2 * t + s"|>>) == "+(*(2, t), +(x, 1))"
+-- subst y |-> x+1, a no-op
+#guard toString (tsubst ("y" |=> <<|"x+1"|>>) <<|"2 * t + s"|>>) == "+(*(2, t), s)"
