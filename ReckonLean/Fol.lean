@@ -13,6 +13,16 @@ inductive Term where
 deriving BEq, Hashable, Inhabited, Repr
 open Term
 
+def Term.toString : Term → String
+  | Var x => x
+  | Fn name [] => s!"{name}"
+  | Fn name args => let arg_str := String.intercalate "," (List.mapTR Term.toString args)
+                    s!"{name}({arg_str})"
+  decreasing_by sorry  -- TODO get around structural recursion
+
+instance : ToString Term where
+  toString := Term.toString
+
 /-! The type of atomic predicates in a First Order Logic -/
 structure Fol where
   -- predicate name; semantics will be defined in terms of an interpretation
@@ -20,6 +30,15 @@ structure Fol where
   -- predicate arguments
   args : List Term
 deriving BEq, Inhabited, Repr
+
+def Fol.toString : Fol → String
+  | ⟨ pred, [] ⟩ => s!"{pred}"
+  | ⟨ pred, args ⟩ =>
+    let arg_str := String.intercalate ", " (List.mapTR Term.toString args)
+    s!"{pred}({arg_str})"
+
+instance : ToString Fol where
+  toString := Fol.toString
 
 /- Trivial example of "x + y < z" -/
 #eval (Atom ⟨"<", [Fn "+" [Var "x", Var "y"], Var "z"]⟩ : Formula Fol)
@@ -94,14 +113,14 @@ declare_syntax_cat folf
 syntax str : folf  -- string for parse
 syntax "<|" folf "|>" : term
 macro_rules
-| `(<|$s:str|>) => `((parse $s).getD default)
+| `(<|$s:str|>) => `(((parse $s).getD default))
 
 /- New Lean syntax for parsing first order logic terms. -/
 declare_syntax_cat folt
 syntax str : folt  -- string for parse
 syntax "<<|" folt "|>>" : term
 macro_rules
-| `(<<|$s:str|>>) => `((parset $s).getD default)
+| `(<<|$s:str|>>) => `(((parset $s).getD default))
 
 /- These examples panic'd the parser before refactoring to monadic combinator style -/
 /-
@@ -130,6 +149,12 @@ Term.Fn "*" [Term.Fn "2" [], Term.Var "x"]
 -/
 #eval <<|"2 * x"|>>
 #eval <<|"3"|>>
+
+/- Print a first-order formula. Predicates are printed infix style. -/
+def print_fol := print_formula (fun _ f => Fol.toString f)
+
+#guard print_fol <|"(x < 2)"|> == "<(x, 2)"
+#guard print_fol (<|"forall x. (x = 0) ∨ (x = 1)"|>) == "forall x. =(x, 0) ∨ =(x, 1)"
 
 /- ------------------------------------------------------------------------- -/
 /- Semantics of First Order Logic                                            -/
