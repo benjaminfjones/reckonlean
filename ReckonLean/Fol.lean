@@ -3,6 +3,8 @@ import ReckonLean.Formulas
 import ReckonLean.FPF
 import ReckonLean.Parser
 
+import Std.Data.List.Lemmas
+
 open Formula
 
 inductive Term where
@@ -323,3 +325,43 @@ end
 #guard toString (tsubst ("s" |=> <<|"x+1"|>>) <<|"2 * t + s"|>>) == "+(*(2, t), +(x, 1))"
 -- subst y |-> x+1, a no-op
 #guard toString (tsubst ("y" |=> <<|"x+1"|>>) <<|"2 * t + s"|>>) == "+(*(2, t), s)"
+#guard free_vars_term (tsubst ("s" |=> <<|"x+1"|>>) <<|"2 * t + s"|>>) == ["t", "x"]
+
+def max_var_name : List String → Nat
+  | [] => 0
+  | v :: vs => Nat.max v.length (max_var_name vs)
+
+/- Lemma used to prove termination of `variant` -/
+theorem max_var_name_mem : ∀ (v: String), ∀ (vars: List String),
+  v ∈ vars → v.length ≤ max_var_name vars := by
+  intro v vars
+  induction vars with
+  | nil =>
+    intro hm
+    exact absurd hm (List.not_mem_nil v)
+  | cons x xs ih =>
+    intro h
+    rw [List.mem_cons] at h
+    cases h with
+    | inl hvx =>
+      unfold max_var_name
+      conv => rhs; rw [← hvx]
+      apply Nat.le_max_left
+    | inr hvxs =>
+        unfold max_var_name
+        calc
+          v.length ≤ max_var_name xs := ih hvxs
+          _        ≤ Nat.max x.length (max_var_name xs) := by apply Nat.le_max_right
+
+/- Produce a variant of `x` by adding primes until the variant doesn't occur in `xs` -/
+def variant (x: String) (xs: List String) : String :=
+  if _hm : List.mem x xs then let x' := s!"{x}'"; variant x' xs else x
+termination_by variant x xs => max_var_name xs + 1 - x.length
+decreasing_by
+  simp_wf
+  unfold List.mem List.contains at _hm  -- reduce to application of List.elem
+  have h : x.length ≤ max_var_name xs := max_var_name_mem x xs (List.mem_of_elem_eq_true _hm)
+  have hh : x.length < x'.length := calc
+    x.length < x.length + 1 := Nat.lt_succ_self _
+    _        = x'.length := by apply Eq.symm; apply List.length_append
+  exact Nat.sub_lt_sub_left (Nat.lt_succ_of_le h) hh
