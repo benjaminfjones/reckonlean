@@ -13,15 +13,20 @@ inductive Term where
 deriving BEq, Hashable, Inhabited, Repr
 open Term
 
-def Term.toString : Term → String
-  | Var x => x
-  | Fn name [] => s!"{name}"
-  | Fn name args => let arg_str := String.intercalate "," (List.mapTR Term.toString args)
-                    s!"{name}({arg_str})"
-  decreasing_by sorry  -- TODO get around structural recursion
+def Term.to_string : Term → String := term_to_string
+where
+  -- this decomposition leads to an automatic termination proof by mutual structural recursion
+  term_to_string
+    | Var x => x
+    | Fn name [] => s!"{name}"
+    | Fn name args => let arg_str := String.intercalate ", " (args_to_strings args)
+                      s!"{name}({arg_str})"
+  args_to_strings
+    | [] => []
+    | t :: ts => (term_to_string t) :: (args_to_strings ts)
 
 instance : ToString Term where
-  toString := Term.toString
+  toString := Term.to_string
 
 /-! The type of atomic predicates in a First Order Logic -/
 structure Fol where
@@ -34,7 +39,7 @@ deriving BEq, Inhabited, Repr
 def Fol.toString : Fol → String
   | ⟨ pred, [] ⟩ => s!"{pred}"
   | ⟨ pred, args ⟩ =>
-    let arg_str := String.intercalate ", " (List.mapTR Term.toString args)
+    let arg_str := String.intercalate ", " (List.mapTR Term.to_string args)
     s!"{pred}({arg_str})"
 
 instance : ToString Fol where
