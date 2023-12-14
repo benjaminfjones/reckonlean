@@ -317,7 +317,6 @@ def tsubst_list (sfn: Func String Term) : List Term → List Term
 
 def tsubst (sfn: Func String Term) : Term → Term
   | Var x => applyd sfn Var x
-  | Fn f [] => Fn f []
   | Fn f args => Fn f (tsubst_list sfn args)
 end
 
@@ -348,10 +347,10 @@ theorem max_var_name_mem : ∀ (v: String), ∀ (vars: List String),
       conv => rhs; rw [← hvx]
       apply Nat.le_max_left
     | inr hvxs =>
-        unfold max_var_name
-        calc
-          v.length ≤ max_var_name xs := ih hvxs
-          _        ≤ Nat.max x.length (max_var_name xs) := by apply Nat.le_max_right
+      unfold max_var_name
+      calc
+        v.length ≤ max_var_name xs := ih hvxs
+        _        ≤ Nat.max x.length (max_var_name xs) := by apply Nat.le_max_right
 
 /- Produce a variant of `x` by adding primes until the variant doesn't occur in `xs` -/
 def variant (x: String) (xs: List String) : String :=
