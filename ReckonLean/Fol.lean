@@ -364,3 +364,46 @@ decreasing_by
     x.length < x.length + 1 := Nat.lt_succ_self _
     _        = x'.length := by apply Eq.symm; apply List.length_append
   exact Nat.sub_lt_sub_left (Nat.lt_succ_of_le h) hh
+
+#guard variant "x" ["z", "y"] == "x"
+#guard variant "x" ["x", "y"] == "x'"
+#guard variant "x" ["x", "x'", "y"] == "x''"
+
+mutual
+/-
+Perform an abitrary term substitution on a formula quantified by `x`, alpha-converting variables as
+needed so that they are not incorrectly captured.
+-/
+partial def substq (sfn: Func String Term) (quant: String → Formula Fol → Formula Fol) (x: String) (fm: Formula Fol) : Formula Fol :=
+  -- is there a free variable `y ≠ x` in `fm` whose substitution term contains `x`? If so, we must rename `x`
+  let x' := if let some _ := List.find?
+    (fun y => List.mem x (free_vars_term (applyd sfn (fun _ => Var y) y)))
+    (Set.subtract (free_vars fm) [x])
+  then
+    -- perform the whole term subst and collect all the resulting free variables, then make a suitable variant of `x` to
+    -- quantify over
+    variant x (free_vars (subst (FPF.undefine sfn x) fm))
+  else
+    x
+  quant x' (subst ((x |-> Var x') sfn) fm)
+
+/- Perform an arbitrary term substition in a first-order formula -/
+partial def subst (sfn: Func String Term) : Formula Fol → Formula Fol
+  | Formula.False => Formula.False
+  | Formula.True => Formula.True
+  | Formula.Atom r => Formula.Atom {r with args := List.mapTR (tsubst sfn) r.args}
+  | Formula.Not p => Formula.Not (subst sfn p)
+  | Formula.And p q => Formula.And (subst sfn p) (subst sfn q)
+  | Formula.Or p q => Formula.Or (subst sfn p) (subst sfn q)
+  | Formula.Imp p q => Formula.Imp (subst sfn p) (subst sfn q)
+  | Formula.Iff p q => Formula.Iff (subst sfn p) (subst sfn q)
+  | Formula.Forall x p => substq sfn mk_forall x p
+  | Formula.Exists x p => substq sfn mk_exists x p
+end
+
+-- non-trivial replacement of `x` doesn't occur when no renaming is needed!
+#guard print_fol (subst ("x" |=> Var "z") <|"forall x. (x = y)"|>) == "forall x. =(x, y)"
+-- quantified `x` is α-renamed to `x'`
+#guard print_fol (subst ("y" |=> Var "x") <|"forall x. (x = y)"|>) == "forall x'. =(x', x)"
+-- quantified `x` and `x'` are α-renamed to `x'`, `x''` (resp.)
+#guard print_fol (subst ("y" |=> Var "x") <|"forall x x'. (x = y ==> x = x')"|>) == "forall x' x''. =(x', x) ==> =(x', x'')"
