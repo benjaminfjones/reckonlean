@@ -102,7 +102,10 @@ def parse_infix_atom (vs: ctx) : parser (Formula Fol) :=
     if let some _ := List.find? (nextin rest) ["=", "<", "<=", ">", ">="] then
           papply (fun tm' => (Atom {pred := rest.head!, args := [tm, tm']}))
                  (parse_term vs) rest.tail!
-    else dbg_trace "expected top-level relation: =, <, <=, ..."; ParseResult.error
+    else
+      -- usually, this sub-parser is ok to fail and backtrack higher up
+      -- dbg_trace "expected top-level relation: =, <, <=, ..."
+      ParseResult.error
 
 def parse_prefix_atom (vs: ctx) : parser (Formula Fol)
   | p::"("::")"::rest => [(Atom (Fol.mk p []), rest)]
