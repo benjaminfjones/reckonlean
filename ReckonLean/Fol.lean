@@ -41,8 +41,14 @@ deriving BEq, Inhabited, Repr
 def Fol.toString : Fol → String
   | ⟨ pred, [] ⟩ => s!"{pred}"
   | ⟨ pred, args ⟩ =>
-    let arg_str := String.intercalate ", " (List.mapTR Term.to_string args)
-    s!"{pred}({arg_str})"
+    if hl : List.all pred.toList symbolic && args.length == 2 then
+      have h₂ : args.length = 2 := by simp_all
+      have _ : 1 ≤ args.length := by rw [h₂]; simp_arith
+      have _ : 2 ≤ args.length := by rw [h₂]; exact Nat.le_refl _
+      s!"{args[0]} {pred} {args[1]}"
+    else
+      let arg_str := String.intercalate ", " (List.mapTR Term.to_string args)
+      s!"{pred}({arg_str})"
 
 instance : ToString Fol where
   toString := Fol.toString
@@ -139,10 +145,14 @@ Formula.Or
       (Formula.Atom { pred := "<", args := [Term.Var "x", Term.Fn "3" []] })))
   (Formula.False)
 -/
-#eval <|"(forall x. x < 2 ==> (x < 3)) ∨ false"|>
-#eval <|"(forall x. x < 3) ∨ false"|>
-#eval <|"(x < 2 ==> false) ∨ false"|>
-#eval <|"forall x. (x = 0) ∨ (x = 1)"|>
+def is_or : Formula Fol → Bool
+  | Formula.Or _ _ => true | _ => false
+def is_quant : Formula Fol → Bool
+  | Formula.Forall _ _ | Formula.Exists _ _ => true | _ => false
+#guard is_or <|"(forall x. x < 2 ==> (x < 3)) ∨ false"|>
+#guard is_or <|"(forall x. x < 3) ∨ false"|>
+#guard is_or <|"(x < 2 ==> false) ∨ false"|>
+#guard is_quant <|"forall x. (x = 0) ∨ (x = 1)"|>
 
 /-
 Bare predicate needs to be parenthesized?
@@ -157,11 +167,68 @@ Term.Fn "*" [Term.Fn "2" [], Term.Var "x"]
 #eval <<|"2 * x"|>>
 #eval <<|"3"|>>
 
-/- Print a first-order formula. Predicates are printed infix style. -/
-def print_fol := print_formula (fun _ f => Fol.toString f)
+mutual
+def print_term (prec: Int) (t: Term) : String :=
+  match t with
+  | Var x => x
+  | Fn "^" [t1, t2] => print_infix_term true false prec 24 "^" t1 t2
+  | Fn "/" [t1, t2] => print_infix_term true true prec 22 "/" t1 t2
+  | Fn "*" [t1, t2] => print_infix_term false true prec 20 "*" t1 t2
+  | Fn "-" [t1, t2] => print_infix_term true true prec 18 "-" t1 t2
+  | Fn "+" [t1, t2] => print_infix_term false true prec 16 "+" t1 t2
+  | Fn "::" [t1, t2] => print_infix_term false false prec 14 "::" t1 t2
+  | Fn f args => print_fargs f args
 
-#guard print_fol <|"(x < 2)"|> == "<(x, 2)"
-#guard print_fol (<|"forall x. (x = 0) ∨ (x = 1)"|>) == "forall x. =(x, 0) ∨ =(x, 1)"
+def print_infix_term (is_left: Bool) (pad: Bool) (parent_prec prec: Int) (sym: String) (t1 t2: Term) :=
+  let lterm := print_term (if is_left then prec else prec + 1) t1
+  let rterm := print_term (if is_left then prec + 1 else prec) t2
+  let sep := if pad then " " else ""
+  if parent_prec > prec then
+    s!"({lterm}{sep}{sym}{sep}{rterm})"
+  else
+    s!"{lterm}{sep}{sym}{sep}{rterm}"
+
+def print_fargs (f: String) (args: List Term) : String :=
+  if args.isEmpty then
+    f
+  else
+    let arg_str := String.intercalate ", " (List.mapTR Term.to_string args)
+    s!"{f}({arg_str})"
+end
+decreasing_by sorry
+
+/- Round trip a bunch of different terms -/
+#guard print_term 0 <<|"(x + 1) + 2"|>> == "(x + 1) + 2"
+#guard print_term 0 <<|"(x) + 2"|>> == "x + 2"
+#guard print_term 0 <<|"(x * y)^2"|>> == "(x * y)^2"
+#guard print_term 0 <<|"x^x^x"|>> == "x^x^x"
+#guard print_term 0 <<|"x^x+1^x"|>> == "x^x + 1^x"
+#guard print_term 0 <<|"f(y)"|>> == "f(y)"
+#guard print_term 0 <<|"c(0,1)"|>> == "c(0, 1)"
+#guard print_term 0 <<|"c() * x^f(y)"|>> == "c * x^f(y)"
+
+/--
+Print a first-order formula.
+
+Equality and inequality predicates are printed infix style.
+-/
+def print_fol : Formula Fol → String :=
+  print_formula (fun _ fol => print_atom fol)
+where
+  print_atom (fol: Fol) : String :=
+    if _ : List.mem fol.pred ["=", "<", "<=", ">", ">="] && fol.args.length == 2 then
+      have _ : 2 ≤ fol.args.length := by simp_all
+      have _ : 1 < fol.args.length := by simp_all
+      have _ : 0 < fol.args.length := by simp_all
+      print_infix_term false true 12 12 fol.pred fol.args[0] fol.args[1]
+    else
+      print_fargs fol.pred fol.args
+
+/- Simpler version, but results are not pretty -/
+def print_fol' := print_formula (fun _ f => Fol.toString f)
+
+#guard print_fol <|"(x < 2)"|> == "x < 2"
+#guard print_fol (<|"forall x. (x = 0) ∨ (x = 1)"|>) == "forall x. x = 0 ∨ x = 1"
 
 /- ------------------------------------------------------------------------- -/
 /- Semantics of First Order Logic                                            -/
@@ -295,9 +362,12 @@ quantifiers for every free variable.
 -/
 def generalize (fm : Formula Fol) : Formula Fol := List.foldr mk_forall fm (free_vars fm)
 
-/- These two formulas aren't equal syntactically because of the order of quantification -/
-#guard print_fol (generalize <|"exists t. (2 * t > s)"|>) == "forall s. exists t. >(*(2, t), s)"
-#guard print_fol (generalize <|"(2 * t > s)"|>) == "forall s t. >(*(2, t), s)"
+#guard print_fol (generalize <|"(2 * t > s)"|>) ==
+  "forall s t. 2 * t > s"
+#guard print_fol (generalize <|"exists t. (2 * t > s)"|>) ==
+  "forall s. exists t. 2 * t > s"
+#guard print_fol (generalize <|"(forall t. P(t, z)) ==> exists w. P(w, z)"|>) ==
+  "forall z. (forall t. P(t, z)) ==> (exists w. P(w, z))"
 
 open FPF
 
@@ -402,8 +472,11 @@ partial def subst (sfn: Func String Term) : Formula Fol → Formula Fol
 end
 
 -- non-trivial replacement of `x` doesn't occur when no renaming is needed!
-#guard print_fol (subst ("x" |=> Var "z") <|"forall x. (x = y)"|>) == "forall x. =(x, y)"
+#guard print_fol (subst ("x" |=> Var "z") <|"forall x. (x = y)"|>) ==
+  "forall x. x = y"
 -- quantified `x` is α-renamed to `x'`
-#guard print_fol (subst ("y" |=> Var "x") <|"forall x. (x = y)"|>) == "forall x'. =(x', x)"
+#guard print_fol (subst ("y" |=> Var "x") <|"forall x. (x = y)"|>) ==
+  "forall x'. x' = x"
 -- quantified `x` and `x'` are α-renamed to `x'`, `x''` (resp.)
-#guard print_fol (subst ("y" |=> Var "x") <|"forall x x'. (x = y ==> x = x')"|>) == "forall x' x''. =(x', x) ==> =(x', x'')"
+#guard print_fol (subst ("y" |=> Var "x") <|"forall x x'. (x = y ==> x = x')"|>) ==
+  "forall x' x''. x' = x ==> x' = x''"
