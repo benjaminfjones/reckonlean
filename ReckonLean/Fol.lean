@@ -70,7 +70,7 @@ fun inp => match inp with
   | "-" :: rest => papply (fun t => Fn "-" [t]) (parse_atomic_term vs) rest
   | f::"("::")"::rest => [(Fn f [], rest)]
   | f::"("::rest =>
-      papply (fun args => Fn f args) (parse_bracketed (parse_list "," (parse_term vs)) ")") rest
+      papply (fun args => Fn f args) (parse_bracketed (parse_list "," (parse_term vs)) ")") ("("::rest)
   | a::rest =>
       [((if is_const_name a && not (List.mem a vs) then Fn a [] else Var a), rest)]
 
@@ -101,7 +101,7 @@ def parse_infix_atom (vs: ctx) : parser (Formula Fol) :=
 def parse_prefix_atom (vs: ctx) : parser (Formula Fol)
   | p::"("::")"::rest => [(Atom (Fol.mk p []), rest)]
   | p::"("::rest =>
-    papply (fun args => Atom (Fol.mk p args)) (parse_bracketed (parse_list "," (parse_term vs)) ")") rest
+    papply (fun args => Atom (Fol.mk p args)) (parse_bracketed (parse_list "," (parse_term vs)) ")") ("("::rest)
   | p::rest =>
     if p != "(" then
       [(Atom (Fol.mk p []), rest)]
