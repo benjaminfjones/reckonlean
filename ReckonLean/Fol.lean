@@ -2,6 +2,7 @@ import ReckonLean.Common
 import ReckonLean.Formulas
 import ReckonLean.FPF
 import ReckonLean.Parser
+import ReckonLean.Prop
 
 import Std.Data.List.Lemmas
 
@@ -483,3 +484,31 @@ end
 -- quantified `x` and `x'` are α-renamed to `x'`, `x''` (resp.)
 #guard print_fol (subst ("y" |=> Var "x") <|"forall x x'. (x = y ==> x = x')"|>) ==
   "forall x' x''. x' = x ==> x' = x''"
+
+
+/- ------------------------------------------------------------------------- -/
+/- Prenex Normal Form                                                        -/
+/- ------------------------------------------------------------------------- -/
+
+def simplify1 (fm: Formula Fol) : Formula Fol :=
+  match fm with
+  -- remove redundant quantifiers
+  | .Forall x p => if List.mem x (free_vars p) then fm else p
+  | .Exists x p => if List.mem x (free_vars p) then fm else p
+  | _ => psimplify1 fm
+
+def simplify : Formula Fol → Formula Fol
+  | .Not p => simplify1 (.Not (simplify p))
+  | .And p q => simplify1 (.And (simplify p) (simplify q))
+  | .Or p q => simplify1 (.Or (simplify p) (simplify q))
+  | .Imp p q => simplify1 (.Imp (simplify p) (simplify q))
+  | .Iff p q => simplify1 (.Iff (simplify p) (simplify q))
+  | .Forall x p => simplify1 (.Forall x (simplify p))
+  | .Exists x p => simplify1 (.Exists x (simplify p))
+  | fm => fm
+
+#guard print_fol (simplify <|"true ==> (p <=> (p <=> false))"|>) == "p <=> ~p"
+#guard print_fol (simplify <|"exists x y z. P(x) ==> Q(z) ==> false"|>) ==
+  "exists x z. P(x) ==> ~Q(z)"
+#guard print_fol (simplify <|"(forall x y. P(x) ∨ (P(y) ∧ false)) ==> exists z. Q"|>) ==
+  "(forall x. P(x)) ==> Q"
