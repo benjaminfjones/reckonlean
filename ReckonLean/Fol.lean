@@ -512,3 +512,52 @@ def simplify : Formula Fol → Formula Fol
   "exists x z. P(x) ==> ~Q(z)"
 #guard print_fol (simplify <|"(forall x y. P(x) ∨ (P(y) ∧ false)) ==> exists z. Q"|>) ==
   "(forall x. P(x)) ==> Q"
+
+
+/--
+Negation normal form for first-order formulas.
+
+Compared to the prop version, this also applies de-Morgan's laws to the quantifiers.
+
+Note: the mutually recursive refactor (compared to Prop nnf) that splits `aux_nnf` from `push_not` allows
+Lean to automatically prove termination. The key fact is that `∀ p, aux_nnf (.Not p) == push_not p`
+-/
+def nnf_fol (fm: Formula Fol) : Formula Fol :=
+  nnf_aux fm
+where
+  nnf_aux
+    | .And p q => .And (nnf_aux p) (nnf_aux q)
+    | .Or p q => .Or (nnf_aux p) (nnf_aux q)
+    | .Imp p q => .Or (push_not p) (nnf_aux q)
+    | .Iff p q =>
+        .Or (.And (nnf_aux p) (nnf_aux q)) (.And (push_not p) (push_not q))
+    | .Forall x p => .Forall x (nnf_aux p)
+    | .Exists x p => .Exists x (nnf_aux p)
+    | .Not p => push_not p
+    | f => f  -- False, True, Atom _
+  push_not : Formula Fol → Formula Fol
+    | .Not p => nnf_aux p
+    | .And p q => .Or (push_not p) (push_not q)
+    | .Or p q => .And (push_not p) (push_not q)
+    | .Imp p q => .And (nnf_aux p) (push_not q)
+    | .Iff p q =>
+        .Or (.And (nnf_aux p) (push_not q)) (.And (push_not p) (nnf_aux q))
+    | .Forall x p => .Exists x (push_not p)
+    | .Exists x p => .Forall x (push_not p)
+    | .False => .True
+    | .True => .False
+    | a@(.Atom _) => .Not a
+
+-- ~(true ∨ P)
+-- (~true ∧ ~P)
+-- false ∧ ~P ... (simplification is to atoms only)
+#guard print_fol (nnf_fol <|"~(true ∨ P)"|>) == "false ∧ ~P"
+-- false ... (full simplification is applied at the end)
+#guard print_fol (simplify $ nnf_fol <|"~(true ∨ P)"|>) == "false"
+
+#guard print_fol (nnf_fol <|"(forall x. P(x)) ==> ((exists y. Q(y)) <=> exists z. P(z) ∧ Q(z))"|>) ==
+  "(exists x. ~P(x)) ∨ " ++
+  "(exists y. Q(y)) ∧ " ++
+  "(exists z. P(z) ∧ Q(z)) ∨ " ++
+  "(forall y. ~Q(y)) ∧ " ++
+  "(forall z. ~P(z) ∨ ~Q(z))"
