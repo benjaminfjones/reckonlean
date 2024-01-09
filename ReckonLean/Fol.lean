@@ -561,3 +561,100 @@ where
   "(exists z. P(z) ∧ Q(z)) ∨ " ++
   "(forall y. ~Q(y)) ∧ " ++
   "(forall z. ~P(z) ∨ ~Q(z))"
+
+/--
+Pull quantifiers out from conjunctions and disjunctions.
+
+For example, assuming y is not free in P nor in Q:
+
+```
+(∀ x, P) ∧ Q ↔ ∀ y, (subst (x |=> y) P) ∧ Q
+```
+
+-/
+def pullquants (formula: Formula Fol) : Formula Fol :=
+  match formula with
+  -- Two special cases where both subformulas are quantified the same way
+  | .And (.Forall x p) (.Forall y q) => pull_aux true true mk_forall mk_and x y p q
+  | .Or (.Exists x p) (.Exists y q) => pull_aux true true mk_exists mk_or x y p q
+  -- The other 8 combinations: {∀, ∃}, in one of two positions connect by one of {∧, ∨}
+  -- Forall
+  | .And (.Forall x p) q => pull_aux true false mk_forall mk_and x x p q
+  | .And p (.Forall y q) => pull_aux false true mk_forall mk_and y y p q
+  | .Or (.Forall x p) q => pull_aux true false mk_forall mk_or x x p q
+  | .Or p (.Forall y q) => pull_aux false true mk_forall mk_or y y p q
+  -- Exists
+  | .And (.Exists x p) q => pull_aux true false mk_exists mk_and x x p q
+  | .And p (.Exists y q) => pull_aux false true mk_exists mk_and y y p q
+  | .Or (.Exists x p) q => pull_aux true false mk_exists mk_or x x p q
+  | .Or p (.Exists y q) => pull_aux false true mk_exists mk_or y y p q
+  | _ => formula
+where
+  -- Note: if `not right` then the result does not depend on `y`. The resulting quantified formula
+  -- always binds a variant of `x`.
+  pull_aux (left right: Bool) (qcons: String → Formula Fol → Formula Fol)
+    (pcons: Formula Fol → Formula Fol → Formula Fol) (x y: String) (p q: Formula Fol) :=
+    let z := variant x (free_vars formula)
+    let p' := if left then subst (x |=> Var z) p else p
+    let q' := if right then subst (y |=> Var z) q else q
+    let formula' := pullquants (pcons p' q')  -- pull deeper quantifiers out
+    qcons z formula'
+decreasing_by sorry
+
+def prenex : Formula Fol → Formula Fol
+  | .Forall x p => .Forall x (prenex p)
+  | .Exists x p => .Exists x (prenex p)
+  | .And p q => pullquants (.And (prenex p) (prenex q))
+  | .Or p q => pullquants (.Or (prenex p) (prenex q))
+  | fm => fm
+
+/-- Compute Prenex Normal Form -/
+def pnf : Formula Fol → Formula Fol := prenex ∘ nnf_fol ∘ simplify
+
+def ex_pnf_1 : Formula Fol := <|"(forall x. P(x) ∨ R(y)) ==> exists y z. Q(y) ∨ ~(exists z. P(z) ∧ Q(z))"|>
+
+/- Simplify removes one redundant quantifier over `z` -/
+#guard print_fol (simplify ex_pnf_1) ==
+  "(forall x. P(x) ∨ R(y)) ==> (exists y. Q(y) ∨ ~(exists z. P(z) ∧ Q(z)))"
+
+/- `nnf_fol` eliminates `==>` and pushes down negation -/
+#guard print_fol (nnf_fol (simplify ex_pnf_1)) ==
+  "(exists x. ~P(x) ∧ ~R(y)) ∨ (exists y. Q(y) ∨ (forall z. ~P(z) ∨ ~Q(z)))"
+
+/- From `nnf_fol ∘ simplify` we go:
+
+(exists x. ~P(x) ∧ ~R(y)) ∨ (exists y. Q(y) ∨ (forall z. ~P(z) ∨ ~Q(z)))
+==> ⬝ ∨ ∀ case: `z` is not free in Q(y)
+(exists x. ~P(x) ∧ ~R(y)) ∨ (exists y. forall z. Q(y) ∨ ~P(z) ∨ ~Q(z))
+==> ∃ ∨ ∃ case
+exists w. (~P(w) ∧ ~R(y)) ∨ (forall z. Q(w) ∨ ~P(z) ∨ ~Q(z))
+==> ⬝ ∨ ∀ case: `z` is not free in left disjunct
+exists w. forall z. (~P(w) ∧ ~R(y)) ∨ (Q(w) ∨ ~P(z) ∨ ~Q(z))
+==> associativity
+exists w. forall z. ~P(w) ∧ ~R(y) ∨ Q(w) ∨ ~P(z) ∨ ~Q(z)
+==> α renaming
+exists x. forall z. ~P(x) ∧ ~R(y) ∨ Q(x) ∨ ~P(z) ∨ ~Q(z)
+
+Prenex normal form is doubly quantified outside with 4 disjuncts
+-/
+#guard print_fol (pnf ex_pnf_1) ==
+  "exists x. forall z. ~P(x) ∧ ~R(y) ∨ Q(x) ∨ ~P(z) ∨ ~Q(z)"
+
+/-
+Double quantified, double universal, disjunction:
+
+Classically, in a given model, if LHS holds then either:
+- ∀ x, P(x) holds in which case ∀ x y. P(x) ∨ Q(y) <==> ∀ y. true <==> true, OR
+- ∀ y, Q(y) holds in which case ... (similar)
+
+Conversely, if RHS holds then either:
+- ∀ x, P(x) holds in which case LHS holds because it's left disjunct holds
+- ∃ a, ¬P(a) so ∀ x y, P(x) ∨ P(y) ==> ∀ y, P(a) ∨ P(y) ==> ∀ y, false ∨ Q(y) ==> ∀ y, Q(y) so
+  LHS again holds because its right disjunct holds
+-/
+#guard print_fol (pnf <|"(forall x. P(x)) ∨ (forall y. Q(y)) "|>) ==
+  "forall x y. P(x) ∨ Q(y)"
+
+/- Double quantified, double existential, conjunction -/
+#guard print_fol (pnf <|"(exists x. P(x)) ∧ (exists y. Q(y)) "|>) ==
+  "exists x y. P(x) ∧ Q(y)"
