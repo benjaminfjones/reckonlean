@@ -626,13 +626,11 @@ def ex_pnf_1 : Formula Fol := <|"(forall x. P(x) ∨ R(y)) ==> exists y z. Q(y) 
 (exists x. ~P(x) ∧ ~R(y)) ∨ (exists y. Q(y) ∨ (forall z. ~P(z) ∨ ~Q(z)))
 ==> ⬝ ∨ ∀ case: `z` is not free in Q(y)
 (exists x. ~P(x) ∧ ~R(y)) ∨ (exists y. forall z. Q(y) ∨ ~P(z) ∨ ~Q(z))
-==> ∃ ∨ ∃ case
-exists w. (~P(w) ∧ ~R(y)) ∨ (forall z. Q(w) ∨ ~P(z) ∨ ~Q(z))
+==> ∃ ∨ ∃ case: `x` is not in the free variables of either side so can be reused
+exists x. (~P(x) ∧ ~R(y)) ∨ (forall z. Q(x) ∨ ~P(z) ∨ ~Q(z))
 ==> ⬝ ∨ ∀ case: `z` is not free in left disjunct
-exists w. forall z. (~P(w) ∧ ~R(y)) ∨ (Q(w) ∨ ~P(z) ∨ ~Q(z))
+exists x. forall z. (~P(x) ∧ ~R(y)) ∨ (Q(x) ∨ ~P(z) ∨ ~Q(z))
 ==> associativity
-exists w. forall z. ~P(w) ∧ ~R(y) ∨ Q(w) ∨ ~P(z) ∨ ~Q(z)
-==> α renaming
 exists x. forall z. ~P(x) ∧ ~R(y) ∨ Q(x) ∨ ~P(z) ∨ ~Q(z)
 
 Prenex normal form is doubly quantified outside with 4 disjuncts
