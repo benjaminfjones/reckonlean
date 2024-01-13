@@ -68,3 +68,32 @@ def nondet : List Nat :=
   pure (a + b)
 
 #eval nondet
+
+section Panic
+
+-- a contradiction can't be found in the second case; the conclusion does not hold
+-- because if A[i]! panics then it's value is `default` as far as the type system is
+-- concerned
+example (i: Nat) (x: Int) (A: Array Int) : A[i]! = x → A[i]? = some x := by
+  intro h
+  unfold getElem! at h
+  split at h
+  . unfold getElem?; simp_all
+  . sorry  -- h: x = outOfBounds
+
+theorem getD_eq_get? (a : Array α) (n: Nat) (d: α) : a.getD n d = (a.get? n).getD d := by
+  simp [Array.get?, Array.getD, Option.getD]; split
+  . rfl
+  . simp
+
+theorem get!_eq_getD [Inhabited α] (a : Array α) (n: Nat): a.get! n = a.getD n default := rfl
+
+theorem get!_eq_get? [Inhabited α] (a : Array α) (n: Nat): a.get! n = (a.get? n).getD default := by
+  simp [get!_eq_getD, getD_eq_get?]
+
+example (i: Nat) (x: Int) (A: Array Int) : A[i]! = x → (A[i]?).getD default = x := by
+  intro h
+  rw [← h]
+  exact (get!_eq_get? A i).symm
+
+end Panic
