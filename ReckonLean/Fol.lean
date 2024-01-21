@@ -656,3 +656,105 @@ Conversely, if RHS holds then either:
 /- Double quantified, double existential, conjunction -/
 #guard print_fol (pnf <|"(exists x. P(x)) ∧ (exists y. Q(y)) "|>) ==
   "exists x y. P(x) ∧ Q(y)"
+
+/- ------------------------------------------------------------------------- -/
+/- Skolemization                                                             -/
+/-                                                                           -/
+/- In some suitable higher-order logic, these formulas are equivalent:       -/
+/-                                                                           -/
+/- forall x. exists y. P[x, y]                                               -/
+/- exists f: D -> D. forall x. P[x, f(x)]                                    -/
+/-                                                                           -/
+/- Then passing from a given model M to a new model M' where the             -/
+/- interpretation of 'f' is defined using AC, we get an equisatisfiable      -/
+/- formula with existential quantifiers eliminated:                          -/
+/-                                                                           -/
+/- forall x. P[x, f(x)]                                                      -/
+/- ------------------------------------------------------------------------- -/
+
+/-- The set of functions, as (name, arity) pairs, occuring in the term -/
+def term_funcs : Term → List (String × Nat)
+  | Var _ => []
+  | Fn name args => Set.union [(name, args.length)] (term_funcs_list args)
+where
+  -- helper for lists make structural recursion go through in the termination proof automation
+  term_funcs_list
+    | [] => []
+    | a :: as => Set.union (term_funcs a) (term_funcs_list as)
+
+#guard term_funcs <<|"x"|>> == []
+#guard term_funcs <<|"c(0,1)"|>> == [("0", 0), ("1", 0), ("c", 2)]
+#guard term_funcs <<|"c() * x^f(y)"|>> == [("*", 2), ("^", 2), ("c", 0), ("f", 1)]
+
+/-- The set of functions, as (name, arity) pairs, occuring in the formula -/
+def formula_funcs (fm: Formula Fol) : List (String × Nat) :=
+  let fol_funcs (pred: Fol) := List.foldl (fun acc a => Set.union acc (term_funcs a)) [] pred.args
+  atom_union fol_funcs fm
+
+#guard formula_funcs <|"(exists x. P(x)) ∧ (exists y. Q(y))"|> == []
+#guard formula_funcs <|"(x + 1 > y)"|> == [("+", 2), ("1", 0)]
+#guard formula_funcs <|"forall x u. P(u, g(x, u), x, f(x))"|> == [("f", 1), ("g", 2)]
+
+mutual
+/--
+Skolemization helper function; transforms a pair of formula and function symbols appearing
+in it
+-/
+partial def skolem (fm: Formula Fol) (fns: List String) : (Formula Fol) × List String :=
+  match fm with
+  | .Exists y p =>
+    let xs := free_vars fm
+    let pref := if xs.isEmpty then s!"c_{y}" else s!"f_{y}"
+    let f := variant pref fns
+    let fx := Fn f (List.mapTR (fun x => Var x) xs)
+    skolem (subst (y |=> fx) p) (f :: fns)
+  | .Forall y p =>
+    let (p', fns') := skolem p fns
+    (.Forall y p', fns')
+  | .And p q => skolem2 mk_and p q fns
+  | .Or p q => skolem2 mk_or p q fns
+  | _ => (fm, fns)
+
+partial def skolem2 (op: Formula Fol → Formula Fol → Formula Fol) (p q: Formula Fol) (fns: List String)
+    : (Formula Fol) × List String :=
+  let (p', fns') := skolem p fns
+  let (q', fns'') := skolem q fns'
+  (op p' q', fns'')
+end
+
+/-- Skolemize a formula, first transforming it to negation normal form -/
+def askolemize fm := Prod.fst (skolem (nnf_fol fm) (List.mapTR Prod.fst (formula_funcs fm)))
+
+/--
+Remove universal quantifies from the front of a formula; this preserves first-order
+satisfiability
+-/
+def specialize : Formula Fol → Formula Fol
+  | .Forall _ p => specialize p
+  | fm => fm
+
+/--
+Overall Skolemization function:
+
+1. transform to NNF
+2. elininate existentials by introducing skolem functions
+3. tranform to prenex normal form by moving any remaining universal quantifies to the outside
+4. remove universal quantiers
+
+This function is satisfiability preserving for first-order formulas.
+-/
+def skolemize := specialize ∘ pnf ∘ askolemize
+
+/- Clearly if `fm := c_x * c_d = 1` holds, then there is a model with constants `c_x, c_y` and an
+interpretation for `*` that satisfies `fm`. This implies that the original formula is satisfied, by
+definition. -/
+#eval print_fol (skolemize <|"exists x. exists y. (x * y = 1)"|>) ==
+  "c_x * c_y = 1"
+
+-- TOOD: sadly there is a still a parser precedence problem with the input formula requiring
+-- explicit parens around the outermost exists
+#guard print_fol (skolemize <|"exists y. (x < y ==> forall u. exists v. x * u < y * v)"|>) ==
+  "~x < f_y(x) ∨ x * u < f_y(x) * f_v(u, x)"
+
+#eval print_fol (skolemize <|"forall x. P(x) ==> (exists y z. Q(y) ∨ ~(exists z. P(z) ∧ Q(z)))"|>) ==
+  "~P(x) ∨ Q(c_y) ∨ ~P(z) ∨ ~Q(z)"
