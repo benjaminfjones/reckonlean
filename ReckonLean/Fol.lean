@@ -172,7 +172,7 @@ Term.Fn "*" [Term.Fn "2" [], Term.Var "x"]
 #eval <<|"3"|>>
 
 mutual
-def print_term (prec: Int) (t: Term) : String :=
+partial def print_term (prec: Int) (t: Term) : String :=
   match t with
   | Var x => x
   | Fn "^" [t1, t2] => print_infix_term true false prec 24 "^" t1 t2
@@ -183,7 +183,7 @@ def print_term (prec: Int) (t: Term) : String :=
   | Fn "::" [t1, t2] => print_infix_term false false prec 14 "::" t1 t2
   | Fn f args => print_fargs f args
 
-def print_infix_term (is_left: Bool) (pad: Bool) (parent_prec prec: Int) (sym: String) (t1 t2: Term) :=
+partial def print_infix_term (is_left: Bool) (pad: Bool) (parent_prec prec: Int) (sym: String) (t1 t2: Term) :=
   let lterm := print_term (if is_left then prec else prec + 1) t1
   let rterm := print_term (if is_left then prec + 1 else prec) t2
   let sep := if pad then " " else ""
@@ -192,14 +192,13 @@ def print_infix_term (is_left: Bool) (pad: Bool) (parent_prec prec: Int) (sym: S
   else
     s!"{lterm}{sep}{sym}{sep}{rterm}"
 
-def print_fargs (f: String) (args: List Term) : String :=
+partial def print_fargs (f: String) (args: List Term) : String :=
   if args.isEmpty then
     f
   else
     let arg_str := String.intercalate ", " (List.mapTR Term.to_string args)
     s!"{f}({arg_str})"
 end
-decreasing_by sorry
 
 /- Round trip a bunch of different terms -/
 #guard print_term 0 <<|"(x + 1) + 2"|>> == "(x + 1) + 2"
@@ -572,7 +571,7 @@ For example, assuming y is not free in P nor in Q:
 ```
 
 -/
-def pullquants (formula: Formula Fol) : Formula Fol :=
+partial def pullquants (formula: Formula Fol) : Formula Fol :=
   match formula with
   -- Two special cases where both subformulas are quantified the same way
   | .And (.Forall x p) (.Forall y q) => pull_aux true true mk_forall mk_and x y p q
@@ -599,7 +598,6 @@ where
     let q' := if right then subst (y |=> Var z) q else q
     let formula' := pullquants (pcons p' q')  -- pull deeper quantifiers out
     qcons z formula'
-decreasing_by sorry
 
 def prenex : Formula Fol → Formula Fol
   | .Forall x p => .Forall x (prenex p)
