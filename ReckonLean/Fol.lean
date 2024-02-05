@@ -672,7 +672,7 @@ Conversely, if RHS holds then either:
 /- forall x. P[x, f(x)]                                                      -/
 /- ------------------------------------------------------------------------- -/
 
-/-- The set of functions, as (name, arity) pairs, occuring in the term -/
+/-- The set of functions, as (name, arity) pairs, occurring in the term -/
 def term_funcs : Term → List (String × Nat)
   | Var _ => []
   | Fn name args => Set.union [(name, args.length)] (term_funcs_list args)
@@ -686,7 +686,7 @@ where
 #guard term_funcs <<|"c(0,1)"|>> == [("0", 0), ("1", 0), ("c", 2)]
 #guard term_funcs <<|"c() * x^f(y)"|>> == [("*", 2), ("^", 2), ("c", 0), ("f", 1)]
 
-/-- The set of functions, as (name, arity) pairs, occuring in the formula -/
+/-- The set of functions, as (name, arity) pairs, occurring in the formula -/
 def formula_funcs (fm: Formula Fol) : List (String × Nat) :=
   let fol_funcs (pred: Fol) := List.foldl (fun acc a => Set.union acc (term_funcs a)) [] pred.args
   atom_union fol_funcs fm
@@ -715,6 +715,7 @@ partial def skolem (fm: Formula Fol) (fns: List String) : (Formula Fol) × List 
   | .Or p q => skolem2 mk_or p q fns
   | _ => (fm, fns)
 
+/-- Skolemize a sub-formula that is a binary connective at the top level -/
 partial def skolem2 (op: Formula Fol → Formula Fol → Formula Fol) (p q: Formula Fol) (fns: List String)
     : (Formula Fol) × List String :=
   let (p', fns') := skolem p fns
@@ -736,10 +737,10 @@ def specialize : Formula Fol → Formula Fol
 /--
 Overall Skolemization function:
 
-1. transform to NNF
-2. elininate existentials by introducing skolem functions
-3. tranform to prenex normal form by moving any remaining universal quantifies to the outside
-4. remove universal quantiers
+1. Transform to NNF
+2. Eliminate existential quantifiers by introducing Skolem functions
+3. Transform to Prenex Normal Form by moving any remaining universal quantifies to the outside
+4. Remove universal quantifiers
 
 This function is satisfiability preserving for first-order formulas.
 -/
@@ -748,7 +749,7 @@ def skolemize := specialize ∘ pnf ∘ askolemize
 /- Clearly if `fm := c_x * c_d = 1` holds, then there is a model with constants `c_x, c_y` and an
 interpretation for `*` that satisfies `fm`. This implies that the original formula is satisfied, by
 definition. -/
-#eval print_fol (skolemize <|"exists x. exists y. (x * y = 1)"|>) ==
+#guard print_fol (skolemize <|"exists x. exists y. (x * y = 1)"|>) ==
   "c_x * c_y = 1"
 
 -- TOOD: sadly there is a still a parser precedence problem with the input formula requiring
@@ -756,5 +757,5 @@ definition. -/
 #guard print_fol (skolemize <|"exists y. (x < y ==> forall u. exists v. x * u < y * v)"|>) ==
   "~x < f_y(x) ∨ x * u < f_y(x) * f_v(u, x)"
 
-#eval print_fol (skolemize <|"forall x. P(x) ==> (exists y z. Q(y) ∨ ~(exists z. P(z) ∧ Q(z)))"|>) ==
+#guard print_fol (skolemize <|"forall x. P(x) ==> (exists y z. Q(y) ∨ ~(exists z. P(z) ∧ Q(z)))"|>) ==
   "~P(x) ∨ Q(c_y) ∨ ~P(z) ∨ ~Q(z)"
