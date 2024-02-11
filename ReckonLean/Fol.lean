@@ -757,3 +757,85 @@ definition. -/
 
 #guard print_fol (skolemize <|"forall x. P(x) ==> (exists y z. Q(y) ∨ ~(exists z. P(z) ∧ Q(z)))"|>) ==
   "~P(x) ∨ Q(c_y) ∨ ~P(z) ∨ ~Q(z)"
+
+
+/-
+First-order unsatisfiability checking using Herbrand's Theorem.
+
+A quantifier-free first-order formula is unsatisfiable iff. some finite
+subset of its ground instances (in a Herbrand universe for P) is
+(propositionally) unsatisfiable.
+
+-/
+
+/-- Function list: pairs of function name and arity -/
+abbrev FnList := List (String × Nat)
+
+/--
+Return the list of constants and functions appearing in the formula, making up a new
+constant for the Herbrand universe in case there are none.
+-/
+def herbfuncs (fm: Formula Fol) : FnList × FnList :=
+  let (cns, fns) := List.partition (fun (_, a) => a == 0) (formula_funcs fm)
+  ((if cns.isEmpty then [("c", 0)] else cns), fns)
+
+-- one constant, one function
+#guard herbfuncs <|"exists x. exists y. (x * y = 1)"|> == ([("1", 0)], [("*", 2)])
+-- one made-up constant, one function
+#guard herbfuncs <|"exists x y z. (x * y = z)"|> == ([("c", 0)], [("*", 2)])
+
+mutual
+/--
+Generate ground terms involving in total `n` functions as well as all `m`-tuples
+of such terms.
+-/
+partial def groundterms (consts: List Term) (funcs: List (String × Nat)) : Nat → List Term
+  | 0 => consts
+  | Nat.succ nfuncs =>
+    List.foldl
+      (fun tms (f, arity) =>
+        (List.mapTR (fun args => Fn f args) (groundtuples consts funcs nfuncs arity)) ++ tms)
+      []
+      funcs
+
+/--
+Generate `m`-tuples of terms each of which involves `nfuncs` functions in total.
+-/
+partial def groundtuples (consts: List Term) (funcs: List (String × Nat)) (nfuncs m: Nat) : List (List Term) :=
+  if m == 0 then
+    (if nfuncs == 0 then [[]] else [])
+  else
+    -- for k ∈ [0, n-1], generate ground terms with k functions,
+    -- then prepend with (m-1)-tuples of ground terms with (n-k)
+    -- functions
+    List.foldl
+      (fun tms k =>
+        -- have hkin : k ∈ List.range_offset_zero (n-1) := by sorry  -- not enough context here to prove this
+        -- have hk : k < n  -- from k ≤ n - 1
+        (List.all_pairs (fun h t => h :: t)
+          (groundterms consts funcs k)
+          (groundtuples consts funcs (nfuncs-k) (m-1))) ++ tms)
+      []
+      (List.range_from_nat 0 nfuncs)
+end
+
+/- Several tests since groundterms/groundtuples is easy to get wrong. -/
+#guard groundterms [Fn "c" []] [("f", 1)] 0 == [Fn "c" []]  -- single constant term
+#guard let consts2 := [Fn "c" [], Fn "a" []]; groundterms consts2 [("f", 1)] 0 == consts2
+#guard groundtuples [Fn "c" []] [("f", 1)] 0 1 == [[Fn "c" []]]  -- single 1-tuple [[c]]
+#guard groundtuples [Fn "c" []] [("f", 1)] 1 1 == [[Fn "f" [Fn "c" []]]]  -- 1-tuples of 1 function total: [[f(c)]]
+#guard groundterms [Fn "c" []] [("f", 1)] 1 == [Fn "f" [Fn "c" []]] -- terms with 1 function total[f(c)]
+#guard groundterms [Fn "c" []] [("f", 1)] 2 == [Fn "f" [Fn "f" [Fn "c" []]]]  -- terms with 2 functions: [f(f(c))]
+-- Three 2-tuples involving 2 function applications:
+-- 1. [f(f(c)), c]
+-- 2. [f(c), f(c)]
+-- 3. [c, f(f(c))]
+#guard groundtuples [Fn "c" []] [("f", 1)] 2 2 ==
+  [[Fn "f" [Fn "f" [Fn "c" []]], Fn "c" []],
+   [Fn "f" [Fn "c" []], Fn "f" [Fn "c" []]],
+    [Fn "c" [], Fn "f" [Fn "f" [Fn "c" []]]]]
+-- How many ways are there to form two additions with two distinct variables?
+-- #additions: (#inner +) + const, const + (#inner +) times (two possibilities for `const`) times #inner
+-- #inner additions: (x + y), (y + x), (x + x), (y + y)
+-- ==> 2 x 2 x 4 == 16 ✓
+#guard List.length (groundterms [Fn "x" [], Fn "y" []] [("+", 2)] 2)  == 16

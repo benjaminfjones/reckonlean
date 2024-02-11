@@ -24,7 +24,7 @@ namespace List
     | [x] => x
     | h :: t => f h (end_itlist f t)
 
-  def all_pairs (f : α → α → β) (l1 l2 : List α) : List β :=
+  def all_pairs (f : α → β → γ) (l1: List α) (l2: List β): List γ :=
     match l1 with
     | [] => []
     | h1 :: t1 => foldr (fun x a => f h1 x :: a) (all_pairs f t1 l2) l2
@@ -68,6 +68,7 @@ namespace List
   example : range_from_nat 1 4 = [1, 2, 3, 4] := by rfl
   example : range_from_nat 5 4 = [] := by rfl
   example : range_from_nat 3 3 = [3] := by rfl
+
 
 /- ------------------------------------------------------------------------- -/
 /- Find list member that maximizes or minimizes a function.                  -/
