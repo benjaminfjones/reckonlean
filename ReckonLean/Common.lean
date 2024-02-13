@@ -356,8 +356,28 @@ where
 #guard subtract [] [2,3] == []
 #guard subtract [2,3] [] == [2,3]
 
-/- Strict subset predicate -/
+/-- Subset predicate -/
 def subset : List α → List α → Bool
+  | l1, l2 => aux (setify l1) (setify l2)
+where
+  aux
+    | [], _ => true  -- order matters in the first two match arms
+    | _, [] => false
+    | l1@(h1 :: t1), h2 :: t2 =>
+        if h1 == h2 then
+          aux t1 t2
+        else if compare h1 h2 == .lt then
+          false
+        else aux l1 t2
+
+#guard subset [1] [1,2]
+#guard subset [1,2] [1,2]
+#guard subset [] [1,2]
+#guard subset ([] : List Nat) []
+#guard not (subset [1,2,3] [1,2])
+
+/-- **Proper** subset -/
+def psubset : List α → List α → Bool
   | l1, l2 => aux (setify l1) (setify l2)
 where
   aux
@@ -366,23 +386,15 @@ where
     | l1@(h1 :: t1), h2 :: t2 =>
         if h1 == h2 then
           aux t1 t2
-        else if compare h1 h2 == .lt then
-          false
-        else aux l1 t2
-
-/- Partial subset -/
-def psubset : List α → List α → Bool
-  | l1, l2 => aux (setify l1) (setify l2)
-where
-  aux
-    | _, [] => false
-    | [], _ => true
-    | l1@(h1 :: t1), h2 :: t2 =>
-        if h1 == h2 then
-          aux t1 t2
         else if compare h1 h2 == lt then
           false
         else aux l1 t2
+
+#guard psubset [1] [1,2]
+#guard not (psubset [1,2] [1,2])
+#guard psubset [] [1,2]
+#guard not (psubset ([] : List Nat) [])
+#guard not (psubset [1,2,3] [1,2])
 
 def image [BEq β] [Ord β] (f : α → β) (xs: List α) : List β :=
   setify (List.map f xs)
