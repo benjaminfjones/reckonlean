@@ -186,6 +186,32 @@ def list_conj {α : Type} [Inhabited α] : List (Formula α) → Formula α
 def list_disj {α : Type} [Inhabited α] : List (Formula α) → Formula α
   | [] => .False | l => List.end_itlist mk_or l
 
+namespace DNF
+/- ------------------------------------------------------------------------- -/
+/- Disjunctive Normal Form (DNF)                                             -/
+/-                                                                           -/
+/- Note: most of this isn't ported from the reckoning development, only some -/
+/- minor definitions.                                                        -/
+/- ------------------------------------------------------------------------- -/
+
+variable {α : Type} [Inhabited α] [Ord α] [BEq α]
+
+abbrev DNFFormula (α: Type) := List (List (Formula α))
+
+/-
+Determine if the conjunction of literals is contradictory, i.e.
+contains both p and ~p for some atomic prop p.
+
+Note: this is the same exact function as `CNF.trivial` below, as a function
+on sets of sets. It's repeated here to clarify the different meaning when we're
+operating on conjunctions of literals vs. disjunctions of literals.
+-/
+def contra (lits: List (Formula α)) : Bool :=
+  let (pos, neg) := List.partition positive lits
+  Set.intersect pos (List.map negate neg) != []
+
+end DNF
+
 namespace CNF
 /- ------------------------------------------------------------------------- -/
 /- Conjuctive Normal Form (CNF)                                              -/

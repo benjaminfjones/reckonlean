@@ -13,7 +13,7 @@ inductive Term where
 | Var : String → Term
 -- function: name, arguments; semantics will be defined in terms of an interpretation
 | Fn : String → List Term → Term
-deriving BEq, Hashable, Inhabited, Repr
+deriving BEq, Hashable, Inhabited, Ord, Repr
 open Term
 
 def Term.to_string : Term → String := term_to_string
@@ -37,7 +37,7 @@ structure Fol where
   pred : String
   -- predicate arguments
   args : List Term
-deriving BEq, Inhabited, Repr
+deriving BEq, Inhabited, Ord, Repr
 
 def Fol.toString : Fol → String
   | ⟨ pred, [] ⟩ => s!"{pred}"
@@ -839,3 +839,32 @@ end
 -- #inner additions: (x + y), (y + x), (x + x), (y + y)
 -- ==> 2 x 2 x 4 == 16 ✓
 #guard List.length (groundterms [Fn "x" [], Fn "y" []] [("+", 2)] 2)  == 16
+
+/-
+Mechanising Herbrand's theorem
+-/
+
+open DNF
+abbrev InstFn := Formula Fol → Formula Fol  -- instantiation function; replaces free vars w/ ground terms
+abbrev ModFn := DNFFormula Fol → InstFn → DNFFormula Fol → DNFFormula Fol  -- modification function
+abbrev TestFn := DNFFormula Fol → Bool  -- satisfiability test function
+
+def herbloop
+    (mfn: ModFn)                  -- modification function for set of ground inst's
+    (tfn: TestFn)                 -- satisfiability test to use
+    (fl0: DNFFormula Fol)         -- original first-order formula
+    (consts: List Term)           -- constant terms in the H universe for `fl0`
+    (funcs: List (String × Nat))  -- function, arity pairs for building the H universe
+    (fvs: List String)            -- free variables of `fl0`
+    (n: Nat)                      -- current level of H being enumerated
+    (fl: List (DNFFormula Fol))   -- ???
+    (tried: List (List Term))     -- tuples of ground instances tried so far
+    (tuples: List (List Term))    -- ???
+    : List (List Term) :=
+  sorry
+
+def gilmore_loop :=
+  herbloop
+    (fun djs0 ifn djs =>
+      List.filterTR (non contra) (CNF.pure_distrib (Set.image (Set.image ifn) djs0) djs))
+    (fun djs => djs != [])
