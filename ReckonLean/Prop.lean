@@ -129,7 +129,7 @@ def negate : Formula α → Formula α | .Not p => p | p => .Not p
 def litabs : (Formula α) → Formula α | .Not p => p | q => q
 
 /- Negation normal form -/
-def nnf (fm: Formula α) : Formula α :=
+partial def nnf (fm: Formula α) : Formula α :=
   nnf_aux (psimplify fm)
 where
   nnf_aux
@@ -145,10 +145,10 @@ where
     | .Not (.Iff p q) =>
         .Or (.And (nnf_aux p) (nnf_aux (.Not q))) (.And (nnf_aux (.Not p)) (nnf_aux q))
     | f => f
-decreasing_by sorry  /- use (depth)-(min depth of .Not) ? -/
+-- decreasing_by sorry  /- use (depth)-(min depth of .Not) ? -/
 
 /- Simple negation-pushing; does not eliminate Iff -/
-def nenf : Formula α → Formula α :=
+partial def nenf : Formula α → Formula α :=
   nenf_aux ∘ psimplify
 where
   nenf_aux : Formula α → Formula α
@@ -162,7 +162,6 @@ where
     | .Imp p q => .Or (nenf_aux (.Not p)) (nenf_aux q)
     | .Iff p q => .Iff (nenf_aux p) (nenf_aux q)
     | fm => fm
-decreasing_by sorry
 
 /-
 Not gonna guard this one :sweat:
@@ -185,6 +184,70 @@ def list_conj {α : Type} [Inhabited α] : List (Formula α) → Formula α
   | [] => .True | l => List.end_itlist mk_and l
 def list_disj {α : Type} [Inhabited α] : List (Formula α) → Formula α
   | [] => .False | l => List.end_itlist mk_or l
+
+namespace DNF
+/- ------------------------------------------------------------------------- -/
+/- Disjunctive Normal Form (DNF)                                             -/
+/-                                                                           -/
+/- Note: most of this isn't ported from the reckoning development, only some -/
+/- minor definitions.                                                        -/
+/- ------------------------------------------------------------------------- -/
+
+variable {α : Type} [Inhabited α] [Ord α] [BEq α]
+
+abbrev DNFFormula (α: Type) := List (List (Formula α))
+def print_dnf_formula_sets := List.map (List.map (print_qliteral print_prp))
+
+/--
+Determine if the conjunction of literals is contradictory, i.e.
+contains both p and ~p for some atomic prop p.
+
+Note: this is the same exact function as `CNF.trivial` below, as a function
+on sets of sets. It's repeated here to clarify the different meaning when we're
+operating on conjunctions of literals vs. disjunctions of literals.
+-/
+def contra (lits: List (Formula α)) : Bool :=
+  let (pos, neg) := List.partition positive lits
+  Set.intersect pos (List.map negate neg) != []
+
+/-- Distribute for the set of sets representation -/
+def pure_distrib (s1 s2: DNFFormula α) := Set.setify (List.all_pairs Set.union s1 s2)
+
+/-- Convert to DNF, by transformation, in set of sets form -/
+def purednf (fm: Formula α) :=
+  match fm with
+  | .And p q => pure_distrib (purednf p) (purednf q)
+  | .Or p q => Set.union (purednf p) (purednf q)
+  | _ => [ [ fm ] ]
+
+/-- Convert to DNF and simplify -/
+def simpdnf (fm: Formula α) :=
+  match fm with
+  | .False => []
+  | .True => [ [] ]
+  | _ =>
+      /- Filter out trivial disjuncts -/
+      let djs := List.filter (non contra) (purednf (nnf fm))
+      /- Filter out subsumed disjuncts -/
+      List.filterTR (fun d => not (List.any djs (fun d' => Set.psubset d' d))) djs
+
+-- This example is close to CNF, but not quite
+def distrib_ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
+
+-- In this example, which is in CNF, distrib produces DNF
+def distrib_ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
+
+-- trivial ∘ purednf
+#guard print_dnf_formula_sets (List.filter (non contra) (purednf distrib_ex1)) ==
+  [["p", "~r"], ["q", "r", "~p"]]
+
+-- simpdnf distrib_ex1
+#guard print_dnf_formula_sets (simpdnf distrib_ex1) == [["p", "~r"], ["q", "r", "~p"]]
+
+-- simpdnf distrib_ex2
+#eval print_dnf_formula_sets (simpdnf distrib_ex2) == [["p", "~r"], ["q", "~p"], ["q", "~r"], ["r", "~p"]]
+
+end DNF
 
 namespace CNF
 /- ------------------------------------------------------------------------- -/
@@ -273,7 +336,7 @@ The transformation is applied to the args sequentially and then
 to the parent formula. If the parent has already been substituted for in
 a previous step, it's substitution is reused.
 -/
-def defcnf_inner (st: CNFState) : CNFState :=
+partial def defcnf_inner (st: CNFState) : CNFState :=
   -- assumption: `fm` is in NENF form
   match st.formula with
   | .And p q => defstep mk_and p q st
@@ -291,7 +354,6 @@ where
     | none =>
       let (v, n3) := freshprop st2.index
       {formula := v, defs := (v |-> (fm', Formula.Iff v fm')) st2.defs, index := n3}
-  decreasing_by sorry
 
 /-
 Helper function for finding the next unsed prop variable index.
@@ -342,17 +404,15 @@ def subcnf (sfn: CNFState → CNFState) (op: PFormula → PFormula → PFormula)
   let st2 := sfn { st1 with formula := q }
   { formula := op st1.formula st2.formula, defs := st2.defs, index := st2.index }
 
-def orcnf (st: CNFState) : CNFState :=
+partial def orcnf (st: CNFState) : CNFState :=
   match st.formula with
   | .Or p q => subcnf orcnf mk_or p q st
   | _ => defcnf_inner st
-decreasing_by sorry
 
-def andcnf (st: CNFState) : CNFState :=
+partial def andcnf (st: CNFState) : CNFState :=
   match st.formula with
   | .And p q => subcnf andcnf mk_and p q st
   | _ => orcnf st
-decreasing_by sorry
 
 /- Optimized defcnf on the set of sets representation -/
 def defcnf_opt_sets : PFormula → PCNFFormula := mk_defcnf andcnf
@@ -460,7 +520,7 @@ def ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
    ["~p", "~p_3", "~r"]]
 
 /- Optimized version intros no additional prop variables -/
-#eval print_cnf_formula_sets (defcnf_opt_sets ex2)
+#guard print_cnf_formula_sets (defcnf_opt_sets ex2)
   == [["p", "q", "r"], ["~p", "~r"]]
 
 /- --------------------------------------------------------------- -/
@@ -508,7 +568,7 @@ def ex3 := <<"(p ∨ (q ∧ ~r)) ∧ s">>
   "(p_1 ∨ ~p_2 ∨ ~p_3) ∧ (p_2 ∨ s ∨ ~r) ∧ (p_2 ∨ ~p_1 ∨ ~p_3) ∧ p_3 ∧ " ++
   "(p_3 ∨ ~p_1 ∨ ~p_2) ∧ (q ∨ ~p ∨ ~p_1) ∧ (r ∨ ~p_2) ∧ (~p_2 ∨ ~s)>>"
 
-#eval print_pf (defcnf_opt <<"(p <=> q) <=> ~(r ==> s)">>)
+#guard print_pf (defcnf_opt <<"(p <=> q) <=> ~(r ==> s)">>)
   == "<<(p ∨ p_1 ∨ q) ∧ (p ∨ ~p_1 ∨ ~q) ∧ (p_1 ∨ p_2 ∨ p_3) ∧ (p_1 ∨ ~p ∨ ~q) ∧ " ++
   "(p_1 ∨ ~p_2 ∨ ~p_3) ∧ (p_2 ∨ s ∨ ~r) ∧ (p_2 ∨ ~p_1 ∨ ~p_3) ∧ p_3 ∧ " ++
   "(p_3 ∨ ~p_1 ∨ ~p_2) ∧ (q ∨ ~p ∨ ~p_1) ∧ (r ∨ ~p_2) ∧ (~p_2 ∨ ~s)>>"

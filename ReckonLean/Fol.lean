@@ -13,7 +13,7 @@ inductive Term where
 | Var : String → Term
 -- function: name, arguments; semantics will be defined in terms of an interpretation
 | Fn : String → List Term → Term
-deriving BEq, Hashable, Inhabited, Repr
+deriving BEq, Hashable, Inhabited, Ord, Repr
 open Term
 
 def Term.to_string : Term → String := term_to_string
@@ -37,7 +37,7 @@ structure Fol where
   pred : String
   -- predicate arguments
   args : List Term
-deriving BEq, Inhabited, Repr
+deriving BEq, Inhabited, Ord, Repr
 
 def Fol.toString : Fol → String
   | ⟨ pred, [] ⟩ => s!"{pred}"
@@ -839,3 +839,81 @@ end
 -- #inner additions: (x + y), (y + x), (x + x), (y + y)
 -- ==> 2 x 2 x 4 == 16 ✓
 #guard List.length (groundterms [Fn "x" [], Fn "y" []] [("+", 2)] 2)  == 16
+
+/-
+Mechanising Herbrand's theorem
+-/
+
+open DNF
+
+-- print DNF formula sets specialized to Formula Fol
+def print_dnf_formula_sets := List.map (List.map (print_qliteral (fun _ f => Fol.toString f)))
+
+-- Instantiation function; replaces free vars w/ ground terms
+abbrev InstFn := Formula Fol → Formula Fol
+-- Modification function: substitues into the first argument (original formula w/ free vars) using
+-- the instantiation function, then conjoins with third argument and uses distribution to get back to DNF.
+abbrev ModFn := DNFFormula Fol → InstFn → DNFFormula Fol → DNFFormula Fol
+-- Satisfiability test function
+abbrev TestFn := DNFFormula Fol → Bool
+
+/--
+Generic loop for Herbrand universe exploration procedures. Note that this loop
+does not terminate when `fl0` is satisfiable.
+-/
+partial def herbloop
+    (mfn: ModFn)                  -- modification function for set of ground inst's
+    (tfn: TestFn)                 -- satisfiability test to use
+    (fl0: DNFFormula Fol)         -- original first-order formula
+    (consts: List Term)           -- constant terms in the H universe for `fl0`
+    (funcs: List (String × Nat))  -- function, arity pairs for building the H universe
+    (fvs: List String)            -- free variables of `fl0`
+    (n: Nat)                      -- current level of H being enumerated
+    (fl: DNFFormula Fol)          -- current conjunction of ground instances
+    (tried: List (List Term))     -- tuples of ground instances tried so far
+    (tuples: List (List Term))    -- ground tuples of length `fvs.length` left to try
+    : List (List Term) :=
+  dbg_trace s!"{tried.length} instances ground tried; {fl.length} items in list"
+  dbg_trace s!"current conjunction: {print_dnf_formula_sets fl}"
+  dbg_trace s!"ground instances tried: {tried}"
+  dbg_trace s!"ground instances to go: {tuples}\n"
+  match tuples with
+  | [] => let newtups := groundtuples consts funcs n fvs.length
+          herbloop mfn tfn fl0 consts funcs fvs (n+1) fl tried newtups
+  | tup::tups =>
+    let fl' := mfn fl0 (subst (FPF.from_lists fvs tup)) fl
+    if not (tfn fl') then
+      -- found an unsatisfiable set of ground instances!
+      tup :: tried
+    else
+      -- mark `tup` as tried and continue using the new current conjunction of ground inst's
+      herbloop mfn tfn fl0 consts funcs fvs n fl' (tup::tried) tups
+
+
+/--
+Setup `herbloop` for the Gilmore procedure.
+
+The formulas and ground instances are kept in disjunctive normal form and the
+test function is the usual simplification + contradiction checker on DNF set-of-sets
+representations.
+-/
+def gilmore_loop :=
+  herbloop
+    (fun djs0 ifn djs =>
+      List.filterTR (non contra) (CNF.pure_distrib (Set.image (Set.image ifn) djs0) djs))
+    (fun djs => djs != [])
+
+/--
+The Gilmore procedure for first-order **validity** checking.
+
+The formula is universally generalized, negated, and then Skolemized to eliminate
+existential quantifiers. We test the result for unsatisfiability by systematically
+exploring sets of ground instances from the Herbrand universe for the Skolemized
+formula.
+-/
+def gilmore (fm: Formula Fol) : Nat :=
+  let sfm := skolemize (.Not (generalize fm))
+  let fvs := free_vars sfm
+  let (consts, funcs) := herbfuncs sfm
+  let consts := Set.image (fun (c,_) => Fn c []) consts
+  List.length $ gilmore_loop (DNF.simpdnf sfm) consts funcs fvs 0 [[]] [] []

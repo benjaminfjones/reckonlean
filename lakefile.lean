@@ -26,4 +26,8 @@ lean_exe «prime_test» {
   root := `PrimeTest
 }
 
+lean_exe «fol_test» {
+  root := `FolTest
+}
+
 require std from git "https://github.com/leanprover/std4" @ "v4.4.0"
