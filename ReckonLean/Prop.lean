@@ -197,8 +197,9 @@ namespace DNF
 variable {α : Type} [Inhabited α] [Ord α] [BEq α]
 
 abbrev DNFFormula (α: Type) := List (List (Formula α))
+def print_dnf_formula_sets := List.map (List.map (print_qliteral print_prp))
 
-/-
+/--
 Determine if the conjunction of literals is contradictory, i.e.
 contains both p and ~p for some atomic prop p.
 
@@ -209,6 +210,43 @@ operating on conjunctions of literals vs. disjunctions of literals.
 def contra (lits: List (Formula α)) : Bool :=
   let (pos, neg) := List.partition positive lits
   Set.intersect pos (List.map negate neg) != []
+
+/-- Distribute for the set of sets representation -/
+def pure_distrib (s1 s2: DNFFormula α) := Set.setify (List.all_pairs Set.union s1 s2)
+
+/-- Convert to DNF, by transformation, in set of sets form -/
+def purednf (fm: Formula α) :=
+  match fm with
+  | .And p q => pure_distrib (purednf p) (purednf q)
+  | .Or p q => Set.union (purednf p) (purednf q)
+  | _ => [ [ fm ] ]
+
+/-- Convert to DNF and simplify -/
+def simpdnf (fm: Formula α) :=
+  match fm with
+  | .False => []
+  | .True => [ [] ]
+  | _ =>
+      /- Filter out trivial disjuncts -/
+      let djs := List.filter (non contra) (purednf (nnf fm))
+      /- Filter out subsumed disjuncts -/
+      List.filterTR (fun d => not (List.any djs (fun d' => Set.psubset d' d))) djs
+
+-- This example is close to CNF, but not quite
+def distrib_ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
+
+-- In this example, which is in CNF, distrib produces DNF
+def distrib_ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
+
+-- trivial ∘ purednf
+#guard print_dnf_formula_sets (List.filter (non contra) (purednf distrib_ex1)) ==
+  [["p", "~r"], ["q", "r", "~p"]]
+
+-- simpdnf distrib_ex1
+#guard print_dnf_formula_sets (simpdnf distrib_ex1) == [["p", "~r"], ["q", "r", "~p"]]
+
+-- simpdnf distrib_ex2
+#eval print_dnf_formula_sets (simpdnf distrib_ex2) == [["p", "~r"], ["q", "~p"], ["q", "~r"], ["r", "~p"]]
 
 end DNF
 
