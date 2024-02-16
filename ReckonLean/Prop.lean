@@ -129,7 +129,7 @@ def negate : Formula α → Formula α | .Not p => p | p => .Not p
 def litabs : (Formula α) → Formula α | .Not p => p | q => q
 
 /- Negation normal form -/
-def nnf (fm: Formula α) : Formula α :=
+partial def nnf (fm: Formula α) : Formula α :=
   nnf_aux (psimplify fm)
 where
   nnf_aux
@@ -145,10 +145,10 @@ where
     | .Not (.Iff p q) =>
         .Or (.And (nnf_aux p) (nnf_aux (.Not q))) (.And (nnf_aux (.Not p)) (nnf_aux q))
     | f => f
-decreasing_by sorry  /- use (depth)-(min depth of .Not) ? -/
+-- decreasing_by sorry  /- use (depth)-(min depth of .Not) ? -/
 
 /- Simple negation-pushing; does not eliminate Iff -/
-def nenf : Formula α → Formula α :=
+partial def nenf : Formula α → Formula α :=
   nenf_aux ∘ psimplify
 where
   nenf_aux : Formula α → Formula α
@@ -162,7 +162,6 @@ where
     | .Imp p q => .Or (nenf_aux (.Not p)) (nenf_aux q)
     | .Iff p q => .Iff (nenf_aux p) (nenf_aux q)
     | fm => fm
-decreasing_by sorry
 
 /-
 Not gonna guard this one :sweat:
@@ -337,7 +336,7 @@ The transformation is applied to the args sequentially and then
 to the parent formula. If the parent has already been substituted for in
 a previous step, it's substitution is reused.
 -/
-def defcnf_inner (st: CNFState) : CNFState :=
+partial def defcnf_inner (st: CNFState) : CNFState :=
   -- assumption: `fm` is in NENF form
   match st.formula with
   | .And p q => defstep mk_and p q st
@@ -355,7 +354,6 @@ where
     | none =>
       let (v, n3) := freshprop st2.index
       {formula := v, defs := (v |-> (fm', Formula.Iff v fm')) st2.defs, index := n3}
-  decreasing_by sorry
 
 /-
 Helper function for finding the next unsed prop variable index.
@@ -406,17 +404,15 @@ def subcnf (sfn: CNFState → CNFState) (op: PFormula → PFormula → PFormula)
   let st2 := sfn { st1 with formula := q }
   { formula := op st1.formula st2.formula, defs := st2.defs, index := st2.index }
 
-def orcnf (st: CNFState) : CNFState :=
+partial def orcnf (st: CNFState) : CNFState :=
   match st.formula with
   | .Or p q => subcnf orcnf mk_or p q st
   | _ => defcnf_inner st
-decreasing_by sorry
 
-def andcnf (st: CNFState) : CNFState :=
+partial def andcnf (st: CNFState) : CNFState :=
   match st.formula with
   | .And p q => subcnf andcnf mk_and p q st
   | _ => orcnf st
-decreasing_by sorry
 
 /- Optimized defcnf on the set of sets representation -/
 def defcnf_opt_sets : PFormula → PCNFFormula := mk_defcnf andcnf
@@ -524,7 +520,7 @@ def ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
    ["~p", "~p_3", "~r"]]
 
 /- Optimized version intros no additional prop variables -/
-#eval print_cnf_formula_sets (defcnf_opt_sets ex2)
+#guard print_cnf_formula_sets (defcnf_opt_sets ex2)
   == [["p", "q", "r"], ["~p", "~r"]]
 
 /- --------------------------------------------------------------- -/
@@ -572,7 +568,7 @@ def ex3 := <<"(p ∨ (q ∧ ~r)) ∧ s">>
   "(p_1 ∨ ~p_2 ∨ ~p_3) ∧ (p_2 ∨ s ∨ ~r) ∧ (p_2 ∨ ~p_1 ∨ ~p_3) ∧ p_3 ∧ " ++
   "(p_3 ∨ ~p_1 ∨ ~p_2) ∧ (q ∨ ~p ∨ ~p_1) ∧ (r ∨ ~p_2) ∧ (~p_2 ∨ ~s)>>"
 
-#eval print_pf (defcnf_opt <<"(p <=> q) <=> ~(r ==> s)">>)
+#guard print_pf (defcnf_opt <<"(p <=> q) <=> ~(r ==> s)">>)
   == "<<(p ∨ p_1 ∨ q) ∧ (p ∨ ~p_1 ∨ ~q) ∧ (p_1 ∨ p_2 ∨ p_3) ∧ (p_1 ∨ ~p ∨ ~q) ∧ " ++
   "(p_1 ∨ ~p_2 ∨ ~p_3) ∧ (p_2 ∨ s ∨ ~r) ∧ (p_2 ∨ ~p_1 ∨ ~p_3) ∧ p_3 ∧ " ++
   "(p_3 ∨ ~p_1 ∨ ~p_2) ∧ (q ∨ ~p ∨ ~p_1) ∧ (r ∨ ~p_2) ∧ (~p_2 ∨ ~s)>>"
