@@ -18,6 +18,8 @@ Build the project. Currently it depends on [std4](https://github.com/leanprover/
 $ lake build
 ```
 
+A full, cold build currently (`6c2bec9`) takes 1 min 50 seconds on an Ubuntu 22.03 t3.xlarge instance.
+
 Run the proof and test scripts:
 
 ```
@@ -31,21 +33,3 @@ $ ./build/bin/ramsey_test
 ```
 
 See `lakefile.lean` for the set of proof and test scripts defined.
-
-## TODO
-
-Porting from OCaml
-
-- [x] port `formulas` (& as much of `common` as needed)
-- [x] port `prop`
-  - [x] port basics from `prop`
-  - [x] implement `prop formula` parser as Lean syntax extension
-  - [x] port basic `prop` examples
-  - [x] port cnf functions
-    - [x] `nnf`
-    - [x] basic cnf
-    - [x] implement poly finite functions with `HashMap`
-    - [x] `defcnf` and `defcnf_opt`
-  - [x] port enough of `prop` to support `dp`, `dpll`, and `dpli`
-- [x] port adder examples
-- [x] port ramsey examples
