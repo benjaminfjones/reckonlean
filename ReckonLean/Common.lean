@@ -27,12 +27,12 @@ namespace List
   def all_pairs (f : α → β → γ) (l1: List α) (l2: List β): List γ :=
     match l1 with
     | [] => []
-    | h1 :: t1 => foldr (fun x a => f h1 x :: a) (all_pairs f t1 l2) l2
+    | h1 :: t1 => foldl (fun a x => f h1 x :: a) (all_pairs f t1 l2) l2
 
   example : all_pairs (fun x y => x + y) [1,2] [-1, -3] =
-    [0, -2, 1, -1] := by rfl
+    [-2, 0, -1, 1] := by rfl
   example : all_pairs (fun x y => x * y) [1,2,3] [-1, -2, -3] =
-    [-1, -2, -3, -2, -4, -6, -3, -6, -9] := by rfl
+    [-3, -2, -1, -6, -4, -2, -9, -6, -3] := by rfl
 
   def distinct_pairs : List α -> List (α × α)
     | [] => []
@@ -59,10 +59,10 @@ namespace List
 
   /- Computes the range of integers from `i` to `j` inclusive. -/
   def range_from (i j: Int) : List Int :=
-    if j < i then [] else map (fun x => Int.ofNat x + i) $ range_offset 0 (j-i+1).natAbs
+    if j < i then [] else mapTR (fun x => Int.ofNat x + i) $ range_offset 0 (j-i+1).natAbs
 
   def range_from_nat (i j: Nat) : List Nat :=
-    if j < i then [] else map (fun x => x + i) $ range_offset 0 (j-i+1)
+    if j < i then [] else mapTR (fun x => x + i) $ range_offset 0 (j-i+1)
 
   example : range_from 1 4 = [1, 2, 3, 4] := by rfl
   example : range_from_nat 1 4 = [1, 2, 3, 4] := by rfl
@@ -78,7 +78,7 @@ namespace List
 def optimize (ord: β → β → Bool) (f : α → β) : List α → Option α
   | [] => none
   | x :: rest =>
-    let rest_obj_vals := List.map (fun x => (x, f x)) rest
+    let rest_obj_vals := List.mapTR (fun x => (x, f x)) rest
     some ((foldr (fun p@(_, y) p'@(_', y') => if ord y y' then p else p') (x, f x)
       rest_obj_vals).fst)
 
@@ -165,7 +165,7 @@ where
 
 #guard setify [1, 3, 2, 1] == [1, 2, 3]  -- true
 
-def set_image [Ord β] [BEq β] (f: α -> β) (s : List α) := setify (List.map f s)
+def set_image [Ord β] [BEq β] (f: α -> β) (s : List α) := setify (List.mapTR f s)
 
 #guard set_image (fun _ => 0) [1, 3, 2, 1] == [0]
 
@@ -226,7 +226,7 @@ where
 #guard union [1,2,3] [4,5] == [1, 2, 3, 4, 5]
 #guard union [1,2,3] [1, 2, 3] == [1, 2, 3]
 
-def unions (s: List (List α)) : List α := setify (List.foldl List.append [] s)
+def unions (s: List (List α)) : List α := setify (List.foldl List.appendTR [] s)
 
 #guard unions [[1,2,3], [4,5,6], [1,5,8]] == [1,2,3,4,5,6,8]
 
@@ -261,7 +261,7 @@ where
         | [] => []
         | s :: rest =>
             union
-              (List.map (union [ s ]) (aux (size - 1) rest))
+              (List.mapTR (union [ s ]) (aux (size - 1) rest))
               (aux size rest))
   termination_by aux _ set => set.length
 
@@ -397,7 +397,7 @@ where
 #guard not (psubset [1,2,3] [1,2])
 
 def image [BEq β] [Ord β] (f : α → β) (xs: List α) : List β :=
-  setify (List.map f xs)
+  setify (List.mapTR f xs)
 
 def insert (x: α) (xs: List α) : List α :=
   setify (x :: xs)
