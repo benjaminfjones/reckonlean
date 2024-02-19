@@ -208,7 +208,7 @@ operating on conjunctions of literals vs. disjunctions of literals.
 -/
 def contra (lits: List (Formula α)) : Bool :=
   let (pos, neg) := List.partition positive lits
-  Set.intersect pos (List.map negate neg) != []
+  not (Set.intersect pos (List.map negate neg)).isEmpty
 
 /-- Distribute for the set of sets representation -/
 def pure_distrib (s1 s2: DNFFormula α) := Set.setify (List.all_pairs Set.union s1 s2)
@@ -286,7 +286,7 @@ contains both p and ~p for some atomic prop p.
 -/
 def trivial (lits: List (Formula α)) : Bool :=
   let (pos, neg) := List.partition positive lits
-  Set.intersect pos (List.map negate neg) != []
+  not (Set.intersect pos (List.map negate neg)).isEmpty
 
 def purecnf : Formula α → CNFFormula α
   | .And p q => Set.union (purecnf p) (purecnf q)

@@ -846,8 +846,8 @@ Mechanising Herbrand's theorem
 
 open DNF
 
--- print DNF formula sets specialized to Formula Fol
-def print_dnf_formula_sets := List.map (List.map (print_qliteral (fun _ f => Fol.toString f)))
+-- print DNF or CNF formula sets specialized to Formula Fol
+def print_fol_sets := List.map (List.map (print_qliteral (fun _ f => Fol.toString f)))
 
 -- Instantiation function; replaces free vars w/ ground terms
 abbrev InstFn := Formula Fol → Formula Fol
@@ -873,20 +873,26 @@ partial def herbloop
     (tried: List (List Term))     -- tuples of ground instances tried so far
     (tuples: List (List Term))    -- ground tuples of length `fvs.length` left to try
     : List (List Term) :=
-  dbg_trace s!"{tried.length} instances ground tried; {fl.length} items in list"
-  dbg_trace s!"current conjunction: {print_dnf_formula_sets fl}"
-  dbg_trace s!"ground instances tried: {tried}"
-  dbg_trace s!"ground instances to go: {tuples}\n"
+  dbg_trace (
+  if n == 0 && tuples.isEmpty then
+    "Start"
+  else
+    s!"n={n}, |tried|={tried.length} ground instances tried; |fl| = {fl.length} disj/conj"
+  )
   match tuples with
   | [] => let newtups := groundtuples consts funcs n fvs.length
+          dbg_trace s!"  * generated {newtups.length} new ground instances to try; starting next level"
           herbloop mfn tfn fl0 consts funcs fvs (n+1) fl tried newtups
   | tup::tups =>
     let fl' := mfn fl0 (subst (FPF.from_lists fvs tup)) fl
+    dbg_trace s!"  * conjoined new ground instances; |fl| : {fl.length} -> {fl'.length}"
     if not (tfn fl') then
+      dbg_trace s!"  * determined set of ground instances is UNSAT"
       -- found an unsatisfiable set of ground instances!
       tup :: tried
     else
       -- mark `tup` as tried and continue using the new current conjunction of ground inst's
+      dbg_trace s!"  * new set of ground instances is still SAT; continuing..."
       herbloop mfn tfn fl0 consts funcs fvs n fl' (tup::tried) tups
 
 

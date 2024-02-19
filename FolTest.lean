@@ -65,25 +65,50 @@ def p24 :=
 
 -- #guard gilmore p24 == 1
 
+def p35 :=
+  <|"exists x y. P(x,y) ==> forall x y. P(x,y)"|>
+def p35_to_check := skolemize (.Not (generalize p35))
+#guard print_fol p35_to_check == "P(x, y) ∧ ~P(c_x, c_y)"
+
 -- Pelletier problem no. 45
 def p45 :=
-  <|"(forall x. P(x) ∧ (forall y. G(y) ∧ H(x,y) ==> J(x,y))
-             ==> (forall y. G(y) ∧ H(x,y) ==> R(y))) ∧
+  <|"(forall x. P(x) ∧ (forall y. G(y) ∧ H(x,y) ==> J(x,y)) ==> (forall y. G(y) ∧ H(x,y) ==> R(y))) ∧
   ~(exists y. L(y) ∧ R(y)) ∧
-  (exists x. P(x) ∧ (forall y. H(x,y) ==> L(y)) ∧
-                     (forall y. G(y) ∧ H(x,y) ==> J(x,y)))
+  (exists x. P(x) ∧ (forall y. H(x,y) ==> L(y)) ∧ (forall y. G(y) ∧ H(x,y) ==> J(x,y)))
   ==> (exists x. P(x) ∧ ~(exists y. G(y) ∧ H(x,y)))"|>
+def p45_to_check := skolemize (.Not (generalize p45))
+#eval (DNF.simpdnf p45_to_check).length  -- 90!
+
+/-
+This agrees exactly with Pelletier's translation of no. 45 to skolemized CNF
+
+[["G(f_y(x))", "R(y)", "~G(y)", "~H(x, y)", "~P(x)"],
+ ["G(f_y'(x))", "~P(x)"],
+ ["H(x, f_y(x))", "R(y)", "~G(y)", "~H(x, y)", "~P(x)"],
+ ["H(x, f_y'(x))", "~P(x)"],
+ ["J(c_x, x)", "~G(x)", "~H(c_x, x)"],
+ ["L(x)", "~H(c_x, x)"],
+ ["P(c_x)"],
+ ["R(y)", "~G(y)", "~H(x, y)", "~J(x, f_y(x))", "~P(x)"],
+ ["~L(x)", "~R(x)"]]
+
+-/
+#eval print_fol_sets (CNF.simpcnf p45_to_check)
+
+
+def test_cases : List (String × Formula Fol × String × (Formula Fol → Nat)) :=
+  [
+    ("p18", p18, "gilmore", gilmore),
+    ("p24", p24, "gilmore", gilmore),
+    ("p35", p35, "gilmore", gilmore),
+    ("p45", p45, "gilmore", gilmore),
+  ]
 
 def main : IO Unit := do
-  IO.println "Solving p18 (Gilmore)"
-  let np18 := gilmore p18
-  IO.println s!"Done: no. instances tried {np18}"
-
-  IO.println "Solving p24 (Gilmore)"
-  let np24 := gilmore p24
-  IO.println s!"Done: no. instances tried {np24}"
-
-  -- XXX: runs out of stack
-  -- IO.println "Solving p45 (Gilmore)"
-  -- let np45 := gilmore p45
-  -- IO.println s!"Done: no. instances tried {np45}"
+  List.forM test_cases (fun (name, fm, tester_name, tester) => do
+    IO.println s!"Solving {name} ({tester_name})"
+    let start <- IO.monoNanosNow
+    let res := tester fm
+    let end_ <- IO.monoNanosNow
+    IO.println s!"Done: no. instances tried {res}. Duration {end_ - start} ns"
+    )
