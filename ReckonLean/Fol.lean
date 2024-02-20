@@ -54,9 +54,6 @@ def Fol.toString : Fol → String
 instance : ToString Fol where
   toString := Fol.toString
 
-/- Trivial example of "x + y < z" -/
-#eval (Atom ⟨"<", [Fn "+" [Var "x", Var "y"], Var "z"]⟩ : Formula Fol)
-
 /- Special case of applying a subfunction to the top *terms*. -/
 def onformula (f: Term → Term) : Formula Fol → Formula Fol := onatoms
   (fun tp => Atom {tp with args := List.map f tp.args})
@@ -158,18 +155,13 @@ def is_quant : Formula Fol → Bool
 #guard is_or <|"(x < 2 ==> false) ∨ false"|>
 #guard is_quant <|"forall x. (x = 0) ∨ (x = 1)"|>
 
-/-
-Bare predicate needs to be parenthesized?
-
-Formula.Atom { pred := "<", args := [Term.Var "x", Term.Fn "2" []] }
--/
-#eval <|"(x < 2)"|>
-
-/-
-Term.Fn "*" [Term.Fn "2" [], Term.Var "x"]
--/
-#eval <<|"2 * x"|>>
-#eval <<|"3"|>>
+-- Bare predicate needs to be parenthesized?
+#guard <|"(x < 2)"|> ==
+  .Atom ⟨ "<", [Term.Var "x", Term.Fn "2" []] ⟩
+#guard <<|"2 * x"|>> ==
+  Term.Fn "*" [Term.Fn "2" [], Term.Var "x"]
+#guard <<|"3"|>> ==
+  Term.Fn "3" []
 
 mutual
 partial def print_term (prec: Int) (t: Term) : String :=
