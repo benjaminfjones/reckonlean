@@ -26,16 +26,16 @@ def ramsey (s t n: Nat) : PFormula :=
     Formula.Atom ⟨ s!"p{p.fst}{p.snd}" ⟩
 
   let comp_connected (grp: List Nat) : PFormula :=
-    List.foldr mk_and Formula.True (List.map atom_of_pair (pairs_of_grp grp))
+    List.foldl mk_and Formula.True (List.map atom_of_pair (pairs_of_grp grp))
 
   let comp_disconnected (grp: List Nat) : PFormula :=
-    List.foldr mk_and
+    List.foldl mk_and
       Formula.True
       (List.map (fun p => Formula.Not (atom_of_pair p)) (pairs_of_grp grp))
 
   Formula.Or
-    (List.foldr mk_or Formula.False (List.map comp_connected conn_grps))
-    (List.foldr mk_or Formula.False  (List.map comp_disconnected dis_grps))
+    (List.foldl mk_or Formula.False (List.map comp_connected conn_grps))
+    (List.foldl mk_or Formula.False  (List.map comp_disconnected dis_grps))
 
 open List
 

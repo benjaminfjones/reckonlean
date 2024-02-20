@@ -36,9 +36,9 @@ namespace List
 
   def distinct_pairs : List α -> List (α × α)
     | [] => []
-    | x :: t => foldr (fun y a => (x, y) :: a) (distinct_pairs t) t
+    | x :: t => foldl (fun a y => (x, y) :: a) (distinct_pairs t) t
 
-  example : distinct_pairs [1, 2, 3] = [(1, 2), (1, 3), (2, 3)] := by rfl
+  example : distinct_pairs [1, 2, 3] = [(1, 3), (1, 2), (2, 3)] := by rfl
   example : distinct_pairs [0, 1] = [(0, 1)] := by rfl
   example : distinct_pairs [0] = [] := by rfl
 
@@ -52,7 +52,7 @@ def optimize (ord: β → β → Bool) (f : α → β) : List α → Option α
   | [] => none
   | x :: rest =>
     let rest_obj_vals := List.mapTR (fun x => (x, f x)) rest
-    some ((foldr (fun p@(_, y) p'@(_', y') => if ord y y' then p else p') (x, f x)
+    some ((foldl (fun p'@(_', y') p@(_, y) => if ord y y' then p else p') (x, f x)
       rest_obj_vals).fst)
 
 def maximize [Ord β] (f: α → β) (l: List α) : Option α := optimize (compare · · == .gt) f l

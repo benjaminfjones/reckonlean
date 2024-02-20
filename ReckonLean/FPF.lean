@@ -144,7 +144,7 @@ Construct a function from a pair of domain, range lists. Zip is used which
 truncates the input lists if they are not of equal length.
 -/
 def from_lists (xs: List α) (ys: List β) : Func α β :=
-  List.foldr (fun (x, y) f => (x |-> y) f) empty (List.zip xs ys)
+  List.foldl (fun f (x, y) => (x |-> y) f) empty (List.zip xs ys)
 
 /-!
 Converts a function into an association list
