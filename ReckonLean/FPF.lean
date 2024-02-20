@@ -107,8 +107,6 @@ def ins (x: α) (y: β) : Func α β → Func α β
   | f => { f with map := f.map.insert x y}
 infixr:100 " |-> " => ins
 
-#check (1 |-> 2) (empty : Func Nat Nat)
-
 /-
 Combine two functions pointwise using the binary operator `op`. The `filter` is
 used to filter out domain, range pairs after applying the `op`.
@@ -121,13 +119,11 @@ def combine (op: β → β → β) (filter: β → Bool) (f1 f2: Func α β) : F
     | none => (x2 |-> y2) func1
   fold combiner f1 f2  -- f1 is the `init`, f2 is folded over
 
-/-
-Example: [some 3, none, some 0]
--/
-#eval let f := combine (fun y y' => y + y') (fun x => x > 5)
-                 ((1 |-> 2) ((2 |-> 1) empty))
-                 ((1 |-> 1) ((2 |-> 6) ((3 |-> 0) empty)))
-      [apply? f 1, apply? f 2, apply? f 3]
+#guard (let f := combine (fun y y' => y + y') (fun x => x > 5)
+          ((1 |-> 2) ((2 |-> 1) empty))
+          ((1 |-> 1) ((2 |-> 6) ((3 |-> 0) empty)))
+        [apply? f 1, apply? f 2, apply? f 3]) ==
+      [some 3, none, some 0]
 
 /-!
 Point function: `(x |=> y)` is the function that is only defined at `x` and
@@ -136,8 +132,8 @@ maps `x` to `y`.
 def point (x: α) (y: β) : Func α β := (x |-> y) empty
 infixr:100 " |=> " => point
 
-#eval apply! (0 |=> 1) 0  -- 1
-#eval apply? (0 |=> 1) 1  -- none
+#guard apply! (0 |=> 1) 0 == 1
+#guard apply? (0 |=> 1) 1 == none
 
 /-!
 Construct a function from a pair of domain, range lists. Zip is used which
@@ -153,16 +149,14 @@ In general, this is different than `graph` whose output is a set.
 -/
 def to_list (f: Func α β) : List (α × β) := f.map.toList
 
-#eval apply! (from_lists [0] [1]) 0  -- 1
-#eval apply? (from_lists [0] [1]) 1  -- none
+#guard apply! (from_lists [0] [1]) 0 == 1
+#guard apply? (from_lists [0] [1]) 1 == none
 
-/-
-Same `combine` example as above:
-[(3, 0), (1, 3)]
--/
-#eval to_list (combine (fun y y' => y + y') (fun x => x > 5)
-                 (from_lists [1,2] [2,1])
-                 (from_lists [1,2,3] [1,6,0]))
+-- Same `combine` example as above:
+#guard (to_list (combine (fun y y' => y + y') (fun x => x > 5)
+         (from_lists [1,2] [2,1])
+         (from_lists [1,2,3] [1,6,0]))) ==
+       [(3, 0), (1, 3)]
 
 /-!
 Choose an arbitrary domain, range pair
