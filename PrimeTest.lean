@@ -11,7 +11,7 @@ def test_primes (prover: PFormula → Bool) (prover_name: String) (lower upper: 
       let res <- ST.Ref.get dump
       IO.println s!"{prover_name} prime {n} result: {res}"
     ))
-    (List.range_from_nat lower upper)
+    (List.drop lower $ List.range (upper+1))
 
 def main : IO Unit := do
   -- There are all fast, until they run out of stack

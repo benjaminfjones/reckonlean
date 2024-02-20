@@ -68,7 +68,7 @@ def resolution_rule (clauses: PCNFFormula) : Option PCNFFormula :=
 /- Overall procedure.                                                        -/
 /- ------------------------------------------------------------------------- -/
 
-def dp (clauses: PCNFFormula) : Bool :=
+partial def dp (clauses: PCNFFormula) : Bool :=
   -- dbg_trace s!"dp: #clauses {List.length clauses}"
   if clauses == [] then true
   else if List.mem [] clauses then false
@@ -86,7 +86,6 @@ def dp (clauses: PCNFFormula) : Bool :=
         /- apply `resolution_rule` and recurse -/
         dp (resolution_rule clauses).get!
 -- termination_by dp clauses => clauses.length  -- need lemmas about rules
-decreasing_by sorry
 
 /- ------------------------------------------------------------------------- -/
 /- Davis-Putnam satisfiability tester and tautology checker.                 -/
@@ -108,7 +107,7 @@ def posneg_count (clauses: PCNFFormula) (lit: PFormula) : Nat :=
   m + n
 
 /- DPPL: naive recursive version -/
-def dpll (clauses: PCNFFormula) : Bool :=
+partial def dpll (clauses: PCNFFormula) : Bool :=
   -- dbg_trace s!"dp: #clauses {List.length clauses}"
   if clauses == [] then true
   else if List.mem [] clauses then false
@@ -124,7 +123,6 @@ def dpll (clauses: PCNFFormula) : Bool :=
         let p := (List.maximize (posneg_count clauses) pvs).get!
         (dpll ([p] :: clauses)) || (dpll ([negate p] :: clauses))
 -- termination_by number of atoms
-decreasing_by sorry
 
 def dpllsat (fm: PFormula) := dpll (CNF.defcnf_opt_sets fm)
 def dplltaut (fm: PFormula) := not (dpllsat (.Not fm))
@@ -165,7 +163,7 @@ structure UnitPropState where
   trail: Trail
 
 /- Apply unit propagation iteratively until reaching a fixpoint -/
-def unit_subpropagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
+partial def unit_subpropagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
   -- filter the negation of defined literals out of current clauses
   let clauses' := List.mapTR (List.filterTR (not ∘ (defined st.lookup) ∘ negate)) st.clauses
   let newu : List PFormula → Option (List PFormula)
@@ -180,7 +178,6 @@ def unit_subpropagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
     -- define all new units in the lookup
     let lookup' := List.foldl (fun l u => (u |-> ()) l) st.lookup us
     unit_subpropagate msg {clauses := clauses', lookup := lookup', trail := trail'}
-decreasing_by sorry
 
 def unit_propagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
   let current_lookup := List.foldl (fun lk d => (d.literal |-> ()) lk) undefined st.trail
@@ -205,7 +202,7 @@ theorem length_backtrack : ∀ tr : Trail,
       . simp
       . simp; apply Nat.le_succ_of_le; assumption
 
-def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
+partial def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
   let st := unit_propagate "dpli" {clauses, lookup := undefined, trail}
   if List.mem [] st.clauses then
     match backtrack trail with
@@ -221,7 +218,6 @@ def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
     | ls =>
         let l := (List.maximize (posneg_count st.clauses) ls).get!  -- `ls` is non-empty
         dpli_aux clauses ({literal := l, decision := .Guessed} :: st.trail)
-decreasing_by sorry
 
 def dpli (clauses: PCNFFormula) : Bool :=
   dpli_aux clauses []
@@ -241,7 +237,7 @@ dpli: decide p_1
 unit_prop: deduced = [[q, r]]
 unit_prop: deduced = [[~p]]
 -/
-#eval dplisat ex1
+#guard dplisat ex1
 
 -- from https://en.wikipedia.org/wiki/Conflict-driven_clause_learning
 def ex2 := <<"(x1 ∨ x4) ∧ (x1 ∨ ~x3 ∨ ~x8) ∧ (x1 ∨ x8 ∨ x12) ∧ (x2 ∨ x11) ∧ (~x7 ∨ ~x3 ∨ x9) ∧ (~x7 ∨ x8 ∨ ~x9) ∧ (x7 ∨ x8 ∨ ~x10) ∧ (x7 ∨ x10 ∨ ~x12)">>
@@ -284,7 +280,7 @@ decreasing_by
   simp_wf
   assumption  -- WOOT
 
-def dplb_aux (learn: Bool) (clauses: PCNFFormula) (trail: Trail) : Bool :=
+partial def dplb_aux (learn: Bool) (clauses: PCNFFormula) (trail: Trail) : Bool :=
   -- dbg_trace s!"====\ndplb: starting trail = {trail}"
   let st := unit_propagate "dplb" {clauses, lookup := undefined, trail}
   -- conflict
@@ -321,7 +317,6 @@ def dplb_aux (learn: Bool) (clauses: PCNFFormula) (trail: Trail) : Bool :=
       -- dbg_trace s!"dplb: guess {print_pf l}"
       -- dplb_aux clauses ({literal := l, decision := .Guessed} :: st.trail)
 -- termination_by length of {unassigned literals in trail}
-decreasing_by sorry
 
 /- DPLL with backjumping without clause learning -/
 def dplb (clauses: PCNFFormula) : Bool :=
@@ -481,7 +476,7 @@ dplb: starting trail = [|z, |p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
 dplb: deduce new trail [|z, |p9, |p8, |p7, |p6, |p5, |p4, |p3, |p2, ~w, |p1]
 
 -/
-#eval dplbsat p1p10_ex
+#guard dplbsat p1p10_ex
 
 -- from https://en.wikipedia.org/wiki/Conflict-driven_clause_learning
 #guard dplbsat ex2

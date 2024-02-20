@@ -25,24 +25,24 @@ def mk_carryselect_ripple_equivalence (n k: Nat) : PFormula :=
     -- carry outputs and sum outputs are equivalent
     (.And
       (.Iff (c n) (c2 n))
-      (conjoin (fun i => .Iff (s i) (s2 i)) (List.range_offset 0 (n-1)))
+      (conjoin (fun i => .Iff (s i) (s2 i)) (List.range n))
     )
 
 def ex_4_2 := mk_carryselect_ripple_equivalence 4 2
 -- 39 variables
-#eval List.length (atoms ex_4_2)
--- 400 clauses
-#eval List.length (CNF.defcnf_opt_sets ex_4_2)
--- 423 clauses for the equivalence proof
-#eval List.length (CNF.defcnf_opt_sets (.Not ex_4_2))
+#guard List.length (atoms ex_4_2) == 39
+-- 407 clauses
+#guard List.length (CNF.defcnf_opt_sets ex_4_2) == 407
+-- 427 clauses for the equivalence proof
+#guard List.length (CNF.defcnf_opt_sets (.Not ex_4_2)) == 427
 
 def ex_5_3 := mk_carryselect_ripple_equivalence 5 3
 -- 48 variables
-#eval List.length (atoms ex_5_3)
--- 491 clauses
-#eval List.length (CNF.defcnf_opt_sets ex_5_3)
--- 517 clauses for the equivalence proof
-#eval List.length (CNF.defcnf_opt_sets (.Not ex_5_3))
+#guard List.length (atoms ex_5_3) == 48
+-- 498 clauses
+#guard List.length (CNF.defcnf_opt_sets ex_5_3) == 498
+-- 521 clauses for the equivalence proof
+#guard List.length (CNF.defcnf_opt_sets (.Not ex_5_3)) == 521
 
 
 /-

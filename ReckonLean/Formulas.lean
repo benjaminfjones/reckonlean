@@ -49,13 +49,12 @@ General parsing of iterated infixes
 /- Parse a general infix operator, parametrized on the syntax, the constructor
    and the type and construction of the final AST.
 -/
-def parse_ginfix [Inhabited α] [Inhabited β] (opsym : token) (opupdate : (α -> β) -> α -> α -> β) (sof : α -> β) (subparser : parser α) : parser β :=
+partial def parse_ginfix [Inhabited α] [Inhabited β] (opsym : token) (opupdate : (α -> β) -> α -> α -> β) (sof : α -> β) (subparser : parser α) : parser β :=
   fun inp => do
     let (e1, inp1) <- subparser inp
     if inp1 != [] && List.head! inp1 == opsym then
       parse_ginfix opsym opupdate (opupdate sof e1) subparser (List.tail! inp1)
     else pure (sof e1, inp1)
-decreasing_by sorry
 /-
 termination_by parse_ginfix ops opu sof sub inp => List.length inp
 decreasing_by
@@ -128,13 +127,13 @@ the atomic proposition parser.
 abbrev iafn_type (α : Type) := (ctx → parser (Formula α)) × (ctx → parser (Formula α))
 
 mutual
-def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
+partial def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
   fun inp =>
     match inp with
     | [] => ParseResult.error  -- formula expected
     | "false" :: rest => pure (Formula.False, rest)
     | "true" :: rest => pure (Formula.True, rest)
-    | "(" :: rest =>
+    | "(" :: _ =>
         -- Try to parse an infix predicate; if that fails parse a bracketed formula
         -- This case means that `(x < 2)` will parse as an atomic formula, but not `x < 2`
         d_choose (iafn.fst vs) (parse_bracketed (parse_formula iafn vs) ")") inp
@@ -148,7 +147,7 @@ def parse_atomic_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parse
       -- parse an atom (or "prefix atom")
       iafn.snd vs inp
 
-def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : String → Formula α → Formula α) (x : String) : parser (Formula α)
+partial def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : String → Formula α → Formula α) (x : String) : parser (Formula α)
   | [] => ParseResult.error
   | y :: rest =>
       papply
@@ -156,7 +155,7 @@ def parse_quant [Inhabited α] (iafn : iafn_type α) (vs : ctx) (qcon : String �
         (if y == "." then parse_formula iafn vs
          else parse_quant iafn (y :: vs) qcon y) rest
 
-def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
+partial def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Formula α) :=
   parse_right_infix "<=>"
     (fun p q => Formula.Iff p q)
     (parse_right_infix "==>"
@@ -167,8 +166,6 @@ def parse_formula [Inhabited α] (iafn : iafn_type α) (vs : ctx) : parser (Form
              (fun p q => Formula.And p q)
              (parse_atomic_formula iafn vs))))
 end
-decreasing_by
-  sorry
 
 /-
 -------------------------------------------------------------------------

@@ -83,11 +83,8 @@ def uniq : List α → List α
       if compare x y == .eq then t' else if t' == t then l else x :: t'
   | l => l
 
-/- Most of the set functions use the `.isLE` method of Ordering -/
-#check (compare 1 2).isLE
-
 /- Merging of sorted lists (maintaining repetitions) -/
-def merge(l1 l2: List α) : List α :=
+partial def merge(l1 l2: List α) : List α :=
   match l1 with
   | [] => l2
   | h1 :: t1 => (
@@ -95,31 +92,22 @@ def merge(l1 l2: List α) : List α :=
       | [] => l1
       | h2 :: t2 =>
           if (compare h1 h2).isLE then h1 :: merge t1 l2 else h2 :: merge l1 t2)
-termination_by merge l1 l2 => l1.length + l2.length
-decreasing_by
-  simp_wf
-  sorry
+-- termination_by merge l1 l2 => l1.length + l2.length
 
 #guard merge [] [1,2] == [1, 2]  -- true
 #guard merge [5] [1,2] == [1, 2, 5]  -- true
 #guard merge [1,2] [1,3] == [1, 1, 2, 3]
 
+partial def mergepairs : List (List α) → List (List α) → List α
+  | s::[], [] => s
+  | l, [] => mergepairs [] l
+  | l, [ s1 ] => mergepairs (s1 :: l) []
+  | l, s1 :: s2 :: ss => mergepairs (merge s1 s2 :: l) ss
 
 /- Bottom-up mergesort -/
-def sort : List α → List α :=
-  let rec mergepairs l1 l2 :=
-    match (l1, l2) with
-    | (s::[], []) => s
-    | (l, []) => mergepairs [] l
-    | (l, [ s1 ]) => mergepairs (s1 :: l) []
-    | (l, s1 :: s2 :: ss) => mergepairs (merge s1 s2 :: l) ss
-  fun
-    | [] => []
-    | l => mergepairs [] ((fun x => [ x ]) <$> l)
-termination_by _ => 0
-decreasing_by
-  simp_wf
-  sorry
+def sort : List α → List α
+  | [] => []
+  | l => mergepairs [] ((fun x => [ x ]) <$> l)
 
 #guard sort [4, 3, 2, 1] == [1, 2, 3, 4]
 #guard sort [1, 3, 2, 1] == [1, 1, 2, 3]

@@ -1,3 +1,4 @@
+import Std.Tactic.GuardExpr  -- provides #guard
 import ReckonLean.Common
 
 /- ------------------------------------------------------------------------- -/
@@ -42,7 +43,7 @@ theorem lexwhile_monotonic : ∀ (p : Char → Bool) (inp: List Char), (lexwhile
 
 /- lexer -/
 def lex (inp : List Char) : tokens :=
-  match hlw : (lexwhile space inp).snd with
+  match _hlw : (lexwhile space inp).snd with
   | [] => []
   | c :: cs =>
       let prop :=
@@ -59,7 +60,7 @@ decreasing_by
     (lexwhile prop cs).snd.length ≤ cs.length := lexwhile_monotonic prop cs
     _ < Nat.succ (cs).length := Nat.lt_of_succ_le (Nat.le_refl _)
     _ = (c :: cs).length := List.length_cons c cs
-    _ = (lexwhile space inp).snd.length := by rw [hlw]
+    _ = (lexwhile space inp).snd.length := by rw [_hlw]
     _ ≤ inp.length := lexwhile_monotonic space inp
 
 
@@ -100,17 +101,21 @@ abbrev parser (a : Type) := tokens -> ParseResult (a × tokens)
 def make_parser {α : Type} [Inhabited α] (pfn: parser α) (inp: String) : Option α :=
   let toks := lex inp.toList
   match pfn toks with
-  | ⟨ [] ⟩ => dbg_trace "parser error"; none
+  | ⟨ [] ⟩ =>
+    -- uncomment for parser debugging
+    -- dbg_trace "parser error"
+    none
   | ⟨ [(e, [])] ⟩ => some e
-  | _ => dbg_trace "unexpected trailing input"; none
+  | _ =>
+    dbg_trace "unexpected trailing input"; none
 
 
 /- ------------------------------------------------------------------------- -/
 /- Examples                                                                  -/
 /- ------------------------------------------------------------------------- -/
 
-#eval lex (String.toList "2*((var_1 + x') + 11)") == ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"]
-#eval lex (String.toList "p ∧ q")
+#guard lex (String.toList "2*((var_1 + x') + 11)") == ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"]
+#guard lex (String.toList "p ∧ q") == ["p", "∧", "q"]
 
 example : lex (String.toList "2*((var_1 + x') + 11)") =
   ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"] := by rfl

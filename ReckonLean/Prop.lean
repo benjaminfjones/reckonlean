@@ -163,17 +163,20 @@ where
     | .Iff p q => .Iff (nenf_aux p) (nenf_aux q)
     | fm => fm
 
-/-
-Not gonna guard this one :sweat:
+-- A bad case for NNF
+#guard nnf <<"(p <=> q) <=> ~(r ==> s)">> ==
+  .Or
+    (.And
+      (.Or
+        (.And (.Atom ⟨"p"⟩) (.Atom ⟨"q"⟩))
+        (.And (.Not (.Atom ⟨"p"⟩)) (.Not (.Atom ⟨"q"⟩))))
+      (.And (.Atom ⟨"r"⟩) (.Not (.Atom ⟨"s"⟩))))
+    (.And
+      (.Or
+        (.And (.Atom ⟨"p"⟩) (.Not (.Atom ⟨"q"⟩)))
+        (.And (.Not (.Atom ⟨"p"⟩)) (.Atom ⟨"q"⟩)))
+      (.Or (.Not (.Atom ⟨"r"⟩)) (.Atom ⟨"s"⟩)))
 
-Or (And (Or (And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r
-s)))) (And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s)))))
-(And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s))))) (And (Or
-(And (Iff (Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s)))) (And (Iff
-(Iff p q) (Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s))))) (Or (Iff (Iff p q)
-(Not (Imp r s))) (Iff (Iff p q) (Not (Imp r s)))))
--/
-#eval nnf <<"(p <=> q) <=> ~(r ==> s)">>
 #guard nenf <<"(p <=> q) <=> ~(r ==> s)">> ==
   .Iff
     (.Iff (.Atom ⟨ "p" ⟩ ) (.Atom ⟨ "q" ⟩ ))
@@ -245,7 +248,7 @@ def distrib_ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
 #guard print_dnf_formula_sets (simpdnf distrib_ex1) == [["p", "~r"], ["q", "r", "~p"]]
 
 -- simpdnf distrib_ex2
-#eval print_dnf_formula_sets (simpdnf distrib_ex2) == [["p", "~r"], ["q", "~p"], ["q", "~r"], ["r", "~p"]]
+#guard print_dnf_formula_sets (simpdnf distrib_ex2) == [["p", "~r"], ["q", "~p"], ["q", "~r"], ["r", "~p"]]
 
 end DNF
 
