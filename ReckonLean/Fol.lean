@@ -292,7 +292,7 @@ def bool_interp : Interp Bool := {
 }
 
 def mod_interp (n : Nat) : Interp Nat := {
-  domain := List.range_from_nat 0 (n-1),
+  domain := List.range n,
   func := (fun fn args =>
     match (fn, args) with
     | ("0", []) => 0
@@ -324,7 +324,7 @@ def every_nonzero_has_an_inverse := <|"forall x. ~(x = 0) ==> exists y. (x * y =
 /- Use the semantics of `mod_interp` to determine the prime numbers up to 45 -/
 #guard List.filter
   (fun n => holds (mod_interp n) undefined every_nonzero_has_an_inverse)
-  (List.range_from_nat 1 45) ==
+  (List.drop 1 $ List.range (45+1)) ==
   [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43]
 
 
@@ -810,13 +810,13 @@ partial def groundtuples (consts: List Term) (funcs: List (String × Nat)) (nfun
     -- functions
     List.foldl
       (fun tms k =>
-        -- have hkin : k ∈ List.range_offset_zero (n-1) := by sorry  -- not enough context here to prove this
+        -- have hkin : k ∈ List.range n := by sorry  -- not enough context here to prove this
         -- have hk : k < n  -- from k ≤ n - 1
         (List.all_pairs (fun h t => h :: t)
           (groundterms consts funcs k)
           (groundtuples consts funcs (nfuncs-k) (m-1))) ++ tms)
       []
-      (List.range_from_nat 0 nfuncs)
+      (List.range (nfuncs+1))
 end
 
 /- Several tests since groundterms/groundtuples is easy to get wrong. -/

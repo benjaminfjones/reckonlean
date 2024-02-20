@@ -18,7 +18,7 @@ import ReckonLean.Dpll
    Note: R(s, t) <:= R(s, t-1) + R(s-1, t)
 -/
 def ramsey (s t n: Nat) : PFormula :=
-  let verts := List.range_offset 1 n
+  let verts := List.drop 1 $ List.range (n+1)
   let conn_grps := Set.allsubsets s verts
   let dis_grps := Set.allsubsets t verts
   let pairs_of_grp : List Nat → List (Nat × Nat) := List.distinct_pairs

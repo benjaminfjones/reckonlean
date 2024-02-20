@@ -55,7 +55,7 @@ def conjoin (f: Nat → PFormula) (idxs: List Nat) := list_conj (List.map f idxs
 -/
 def ripplecarry (n: Nat) (x y cin sumout: Nat → PFormula) : PFormula :=
   let mkconj i := fulladd (x i) (y i) (cin i) (sumout i) (cin (i + 1))
-  conjoin mkconj (List.range_offset 0 n)
+  conjoin mkconj (List.range n)
 
 /- Ripple carry with input carry = 0 -/
 def ripplecarry0 (n: Nat) (x y cin sumout: Nat → PFormula) : PFormula :=
@@ -90,21 +90,20 @@ def offset (n: Nat) (x: Nat → PFormula) (i: Nat) : PFormula := x (n + i)
 /-
 Carry-select adder over `n`-bits with blocks of size `k`.
 -/
-def carryselect (n k: Nat) (x y c0 c1 s0 s1 c s: Nat → PFormula) : PFormula :=
+partial def carryselect (n k: Nat) (x y c0 c1 s0 s1 c s: Nat → PFormula) : PFormula :=
   let k' := min n k
   let fm :=
     Formula.And
       (.And (ripplecarry0 k' x y c0 s0) (ripplecarry1 k' x y c1 s1))
       (.And
         (.Iff (c k') (mux (c 0) (c0 k') (c1 k')))
-        (conjoin (fun i => .Iff (s i) (mux (c 0) (s0 i) (s1 i))) (List.range_offset 0 k')))
+        (conjoin (fun i => .Iff (s i) (mux (c 0) (s0 i) (s1 i))) (List.range k')))
   if k' < k then fm  -- in particular, `n < k`
   else
     .And
       fm
       (carryselect (n - k) k (offset k x) (offset k y) (offset k c0)
           (offset k c1) (offset k s0) (offset k s1) (offset k c) (offset k s) )
-  decreasing_by sorry
 
 
 /- Examples -/

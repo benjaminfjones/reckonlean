@@ -42,33 +42,6 @@ namespace List
   example : distinct_pairs [0, 1] = [(0, 1)] := by rfl
   example : distinct_pairs [0] = [] := by rfl
 
-  /-
-  `range_offset i n` has `n` elements and starts at `i`.
-
-  Termination is proved.
-  -/
-  def range_offset (i : Nat) : Nat → List Nat
-    | 0 => []
-    | Nat.succ k => i :: range_offset (i+1) k
-  termination_by range_offset i k => k
-  decreasing_by
-    simp_wf
-    apply Nat.lt_succ_self
-
-  example : range_offset 1 4 = [1, 2, 3, 4] := by rfl
-
-  /- Computes the range of integers from `i` to `j` inclusive. -/
-  def range_from (i j: Int) : List Int :=
-    if j < i then [] else mapTR (fun x => Int.ofNat x + i) $ range_offset 0 (j-i+1).natAbs
-
-  def range_from_nat (i j: Nat) : List Nat :=
-    if j < i then [] else mapTR (fun x => x + i) $ range_offset 0 (j-i+1)
-
-  example : range_from 1 4 = [1, 2, 3, 4] := by rfl
-  example : range_from_nat 1 4 = [1, 2, 3, 4] := by rfl
-  example : range_from_nat 5 4 = [] := by rfl
-  example : range_from_nat 3 3 = [3] := by rfl
-
 
 /- ------------------------------------------------------------------------- -/
 /- Find list member that maximizes or minimizes a function.                  -/

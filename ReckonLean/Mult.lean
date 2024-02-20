@@ -43,7 +43,7 @@ def multiplier (n: Nat) (x u v: Nat → Nat → PFormula) (out: Nat → PFormula
                    rippleshift n (u k) (x k) (v (k + 1))
                      (if k == n - 1 then fun i => out (n + i)
                       else u (k + 1))
-                     (out k)) (List.range_from_nat 2 (n - 1)))))
+                     (out k)) (List.drop 2 $ List.range n))))
 
 /- ------------------------------------------------------------------------- -/
 /- Primality examples.                                                       -/
@@ -78,7 +78,7 @@ example : bit 2 3 = false := by rfl
 /-! Formula asserting that a propositional bitvector `x` is congruent to Nat `m` mod 2^`n` -/
 def congruent_to (x: Nat → PFormula) (m n: Nat) : PFormula :=
   conjoin (fun i => if bit i m then x i else .Not (x i))
-          (List.range_from_nat 0 (n - 1))
+          (List.range n)
 
 /-!
 Formula asserting that a natural number `p` is prime.
