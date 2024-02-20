@@ -40,13 +40,13 @@ def ramsey (s t n: Nat) : PFormula :=
 open List
 
 def ex_3_3_6 := ramsey 3 3 6
-#eval length (atoms ex_3_3_6)  -- 15 variables
-#eval length (CNF.defcnf_opt_sets ex_3_3_6)  -- 241 clauses
-#eval length (CNF.defcnf_opt_sets (.Not ex_3_3_6))  -- 40 clauses in tautology form
-#eval maximize id $ map length (CNF.defcnf_opt_sets (.Not ex_3_3_6))  -- largest clause has 3 literals
+#guard length (atoms ex_3_3_6) == 15  -- 15 variables
+#guard length (CNF.defcnf_opt_sets ex_3_3_6) == 241  -- 241 clauses
+#guard length (CNF.defcnf_opt_sets (.Not ex_3_3_6)) == 40 -- 40 clauses in tautology form
+#guard (maximize id $ map length (CNF.defcnf_opt_sets (.Not ex_3_3_6))) == some 3  -- largest clause has 3 literals
 
 def ex_3_4_9 := ramsey 3 4 9
-#eval length (atoms ex_3_4_9)  -- 36 variables
-#eval length (CNF.defcnf_opt_sets ex_3_4_9)  -- 2395 clauses
-#eval length (CNF.defcnf_opt_sets (.Not ex_3_4_9))  -- 210 clauses in tautology form
-#eval maximize id $ map length (CNF.defcnf_opt_sets (.Not ex_3_4_9))  -- largest clause has 6 literals
+#guard length (atoms ex_3_4_9) == 36  -- 36 variables
+#guard length (CNF.defcnf_opt_sets ex_3_4_9) == 2395  -- 2395 clauses
+#guard length (CNF.defcnf_opt_sets (.Not ex_3_4_9)) == 210  -- 210 clauses in tautology form
+#guard (maximize id $ map length (CNF.defcnf_opt_sets (.Not ex_3_4_9))) == some 6  -- largest clause has 6 literals

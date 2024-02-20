@@ -9,7 +9,7 @@ def prove_ramsey (taut_impl: PFormula -> Bool) (s t n: Nat): IO Unit := do
       let res := taut_impl (ramsey s t n)
       IO.println s!"*** s:={s}, t:={t}, n:={n}: {res} ***"
       pure res)
-    (List.range_offset 1 n)
+    (List.drop 1 $ List.range (n+1))
   if rs.reverse.head! then
     IO.println "Proved."
   else

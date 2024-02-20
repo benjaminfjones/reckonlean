@@ -223,20 +223,26 @@ instance {α : Type} [Ord α] : Ord (List α) where
 #guard sort [[1,2], [2,1], [], [3,2,1], [1,5,9]] == [[], [1, 2], [1, 5, 9], [2, 1], [3, 2, 1]]
 
 /- Return a list of all subsets of given size. -/
-def allsubsets (size: Int) (set: List α) : List (List α) :=
-  aux size (setify set)
+def allsubsets (size: Int) (items: List α) : List (List α) :=
+  aux size (setify items)
 where
-  aux sz set :=
-    if size <= 0 then [ [] ]
-    else if size > List.length set then []
+  aux sz xs :=
+    if sz <= 0 then [ [] ]
+    else if sz > xs.length then []
     else (
-        match set with
+        match xs with
         | [] => []
-        | s :: rest =>
+        | x :: rest =>
             union
-              (List.mapTR (union [ s ]) (aux (size - 1) rest))
-              (aux size rest))
-  termination_by aux _ set => set.length
+              (List.mapTR (union [ x ]) (aux (sz - 1) rest))
+              (aux sz rest))
+  termination_by aux _ xs => xs.length
+
+#guard allsubsets 4 [1,2,3] == []
+#guard allsubsets 3 [1,2,3] == [[1, 2, 3]]
+#guard allsubsets 2 [1,2,3] == [[1, 2], [1, 3], [2, 3]]
+#guard allsubsets 0 [1,2,3] == [[]]
+
 
 /-
 Setify the input lists and return their intersection.
