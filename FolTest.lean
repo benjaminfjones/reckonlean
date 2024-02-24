@@ -55,15 +55,28 @@ def p18_to_check := skolemize (.Not (generalize p18))
 -- #guard gilmore easy_unsat_ex == 2
 
 
--- Pelletier problem 24
-def p24 :=
-   <|"~(exists x. U(x) ∧ Q(x)) ∧
-     (forall x. P(x) ==> Q(x) ∨ R(x)) ∧
-     ~(exists x. P(x) ==> (exists x. Q(x))) ∧
-     (forall x. Q(x) ∧ R(x) ==> U(x))
-     ==> (exists x. P(x) ∧ R(x))"|>
+/--
+Pelletier problem 24
 
--- #guard gilmore p24 == 1
+One of the "tedious monadic logic problems from Kalish and Montague (1964)".
+-/
+def p24 :=
+   <|"~(exists x. S(x) ∧ Q(x)) ∧
+     (forall x. P(x) ==> Q(x) ∨ R(x)) ∧
+     (~(exists x. P(x)) ==> (exists x. Q(x))) ∧
+     (forall x. Q(x) ∨ R(x) ==> S(x))
+     ==> (exists x. P(x) ∧ R(x))"|>
+def p24_to_check := skolemize (.Not (generalize p24))
+-- #eval print_fol p24_to_check
+-- #eval print_fol_sets (DNF.simpdnf p24_to_check)
+-- CNF of the formula to check matches Pelletier's answer exactly
+#guard print_fol_sets (CNF.simpcnf p24_to_check) ==
+  [["P(c_x)", "Q(c_x')"],
+   ["Q(x)", "R(x)", "~P(x)"],
+   ["S(x)", "~Q(x)"],
+   ["S(x)", "~R(x)"],
+   ["~P(x)", "~R(x)"],
+   ["~Q(x)", "~S(x)"]]
 
 def p35 :=
   <|"exists x y. P(x,y) ==> forall x y. P(x,y)"|>
