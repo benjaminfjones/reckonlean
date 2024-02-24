@@ -113,16 +113,21 @@ def sort : List α → List α
 #guard sort [1, 3, 2, 1] == [1, 1, 2, 3]
 #guard sort [1] == [1]
 
-/- Construct a set, represented as a canonical list -/
+/--
+A list is canonical iff. it is sorted and has unique elements.
+
+`canonical` is tail-recursive and linear-time.
+-/
+def canonical : List α → Bool
+  | x :: rest@(y :: _) =>
+    if compare x y == lt then canonical rest else false
+  | _ => true
+
+/-- Construct a set, represented as a canonical list. -/
 def setify (l: List α) : List α :=
   if canonical l then l
   else
     uniq <| sort l
-where
-  canonical (lis: List α) :=
-    match lis with
-    | x :: rest@(y :: _) => compare x y == lt && canonical rest
-    | _ => true
 
 #guard setify [1, 3, 2, 1] == [1, 2, 3]  -- true
 
