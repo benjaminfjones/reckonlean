@@ -78,10 +78,20 @@ def p24_to_check := skolemize (.Not (generalize p24))
    ["~P(x)", "~R(x)"],
    ["~Q(x)", "~S(x)"]]
 
+/--
+Pelletier problem no. 35.
+
+Start of the section on "Full Predicate Logic Without Identity and Functions".
+Problem 35 is a test for checking that quantifiers are handled correctly.
+-/
 def p35 :=
   <|"exists x y. P(x,y) ==> forall x y. P(x,y)"|>
 def p35_to_check := skolemize (.Not (generalize p35))
 #guard print_fol p35_to_check == "P(x, y) ∧ ~P(c_x, c_y)"
+-- CNF of the formula to check is a better version of Pelletier's answer,
+-- but first-order logically equivalent under the mapping (c_x |-> f(x,y))(c_y |-> g(x,y))
+#guard print_fol_sets (CNF.simpcnf p35_to_check) ==
+  [["P(x, y)"], ["~P(c_x, c_y)"]]
 
 -- Pelletier problem no. 45
 def p45 :=
