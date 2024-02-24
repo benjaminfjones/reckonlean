@@ -350,23 +350,47 @@ where
 
 /-- **Proper** subset -/
 def psubset : List α → List α → Bool
-  | l1, l2 => aux (setify l1) (setify l2)
+  | l1, l2 => p_subaux (setify l1) (setify l2)
 where
-  aux
+  p_subaux
     | _, [] => false  -- order matters in the first two match arms
     | [], _ => true
     | l1@(h1 :: t1), h2 :: t2 =>
         if h1 == h2 then
-          aux t1 t2
-        else if compare h1 h2 == lt then
+          p_subaux t1 t2
+        else if compare h1 h2 == .lt then
           false
-        else aux l1 t2
+        else subset.aux l1 t2  -- note: subset aux in this branch, not psubset aux
 
 #guard psubset [1] [1,2]
 #guard not (psubset [1,2] [1,2])
 #guard psubset [] [1,2]
 #guard not (psubset ([] : List Nat) [])
 #guard not (psubset [1,2,3] [1,2])
+#guard psubset [1, 2, 3, 4] [1, 5, 2, 3, 4]
+#guard not (psubset [1, 5, 2, 3, 4] [1, 2, 3, 4])
+#guard psubset ["pc", "nhc", "nlx", "npx"] ["pc", "nhx", "nhc", "nlx", "npx"]
+/-
+Regression test for `psubset` in the context of subsumption.
+
+[P(c_x), ~H(x, y), ~H(c_x, x), ~L(x), ~P(x)],
+[P(c_x), ~H(x, y), ~H(c_x, x), ~P(x), ~R(x)],
+[P(c_x), ~H(c_x, x), ~L(x), ~P(x)],
+[P(c_x), ~H(c_x, x), ~P(x), ~R(x)]
+
+==>
+
+[P(c_x), ~H(c_x, x), ~L(x), ~P(x)],
+[P(c_x), ~H(c_x, x), ~P(x), ~R(x)]
+-/
+#guard
+  let lls := [
+    ["pc", "nhx", "nhc", "nlx", "npx"],
+    ["pc", "nhx", "nhc", "npx", "nrx"],
+    ["pc", "nhc", "nlx", "npx"],
+    ["pc", "nhc", "npx", "nrx"],
+  ]
+  (List.filterTR (fun d => not (List.any lls (fun d' => Set.psubset d' d))) lls).length == 2
 
 def image [BEq β] [Ord β] (f : α → β) (xs: List α) : List β :=
   setify (List.mapTR f xs)
@@ -375,3 +399,8 @@ def insert (x: α) (xs: List α) : List α :=
   setify (x :: xs)
 
 end Set
+
+
+-- #eval (Set.setify (List.all_pairs Set.union
+--   ((fun l => [l]) <$> List.range 90)
+--   ((fun l => [l]) <$> List.range 7000))).length

@@ -525,11 +525,11 @@ section pqqr
    [ q],
    [ ~p,  ~q, ~r]]
   -/
-  /-
-
-  -/
-  #guard CNF.print_cnf_formula_sets (CNF.simpcnf not_pqqr)
-    ==  [["p", "q"], ["p", "r"], ["q"], ["~p", "~q", "~r"]]
+  #guard CNF.print_cnf_formula_sets (CNF.simpcnf not_pqqr) ==
+    [["p", "r"], ["q"], ["~p", "~q", "~r"]]
+    -- a bug where subsumption was not effective led to:
+    -- [["p", "q"], ["p", "r"], ["q"], ["~p", "~q", "~r"]]
+    -- which has a redundant first clause
 
   /-
   DP trace:

@@ -224,31 +224,35 @@ def purednf (fm: Formula α) :=
   | _ => [ [ fm ] ]
 
 /-- Convert to DNF and simplify -/
-def simpdnf (fm: Formula α) :=
-  match fm with
+def simpdnf : Formula α → DNFFormula α
   | .False => []
   | .True => [ [] ]
-  | _ =>
+  | fm =>
       /- Filter out trivial disjuncts -/
-      let djs := List.filter (non contra) (purednf (nnf fm))
-      /- Filter out subsumed disjuncts -/
+      let djs := List.filterTR (non contra) (purednf (nnf fm))
+      /- Filter out subsumed disjuncts:
+         {l1, ..., lm} ⊆ {k1, ..., kn} ==> any valuation satisfying
+         K := k1 ∧ ... ∧ kn also satisfies L := l1 ∧ ... ∧ lm. Thus
+         L ∨ K <==> L.
+      -/
       List.filterTR (fun d => not (List.any djs (fun d' => Set.psubset d' d))) djs
 
--- This example is close to CNF, but not quite
+-- Example 1: this is close to CNF, but not quite
 def distrib_ex1 := <<"(p ∨ q ∧ r) ∧ (~p ∨ ~r)">>
-
--- In this example, which is in CNF, distrib produces DNF
-def distrib_ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
-
--- trivial ∘ purednf
 #guard print_dnf_formula_sets (List.filter (non contra) (purednf distrib_ex1)) ==
   [["p", "~r"], ["q", "r", "~p"]]
-
--- simpdnf distrib_ex1
 #guard print_dnf_formula_sets (simpdnf distrib_ex1) == [["p", "~r"], ["q", "r", "~p"]]
 
--- simpdnf distrib_ex2
-#guard print_dnf_formula_sets (simpdnf distrib_ex2) == [["p", "~r"], ["q", "~p"], ["q", "~r"], ["r", "~p"]]
+-- Example 2: this is in CNF, distrib produces DNF
+def distrib_ex2 := <<"(p ∨ q ∨ r) ∧ (~p ∨ ~r)">>
+#guard print_dnf_formula_sets (simpdnf distrib_ex2) ==
+  [["p", "~r"], ["q", "~p"], ["q", "~r"], ["r", "~p"]]
+
+-- Example 3: this is a test of subsumption; from the right hand disjunct you'd expect
+-- to get ["p", "~r", "q"] but it's subsumed by ["p", "~r"] from the left hand.
+def distrib_ex3 := <<"((p ∨ q ∨ r) ∧ (~p ∨ ~r)) ∨ ((p ∨ ~r) ∧ (~p ∨ ~r) ∧ (r ∨ q))">>
+#guard print_dnf_formula_sets (simpdnf distrib_ex3) ==
+  [["p", "~r"], ["q", "~p"], ["q", "~r"], ["r", "~p"]]
 
 end DNF
 
