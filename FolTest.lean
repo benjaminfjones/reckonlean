@@ -100,9 +100,157 @@ def p45 :=
   (exists x. P(x) ∧ (forall y. H(x,y) ==> L(y)) ∧ (forall y. G(y) ∧ H(x,y) ==> J(x,y)))
   ==> (exists x. P(x) ∧ ~(exists y. G(y) ∧ H(x,y)))"|>
 def p45_to_check := skolemize (.Not (generalize p45))
-#guard (DNF.simpdnf p45_to_check).length == 90  -- TODO: XXX: check against handbook
--- The clausal repreentation of the formula to be checked agrees exactly with
--- Pelletier's translation of no. 45 to skolemized CNF
+/-
+Us:
+
+(((~P(x) ∨ (G(f_y(x)) ∧ H(x, f_y(x))) ∧ ~J(x, f_y(x))) ∨
+  (~G(y) ∨ ~H(x, y)) ∨
+  R(y)) ∧
+  (~L(x) ∨ ~R(x)) ∧
+  P(c_x) ∧
+  (~H(c_x, x) ∨ L(x)) ∧
+  ((~G(x) ∨ ~H(c_x, x)) ∨ J(c_x, x))) ∧
+(~P(x) ∨ G(f_y'(x)) ∧ H(x, f_y'(x)))
+
+Handbook:
+
+(((~P(x) \/ (G(f_y(x)) /\ H(x,f_y(x))) /\ ~J(x,f_y(x))) \/
+  (~G(y) \/ ~H(x,y)) \/
+  R(y)) /\
+  (~L(x) \/ ~R(x)) /\
+   P(c_x) /\
+   (~H(c_x,x) \/ L(x)) /\
+   ((~G(x) \/ ~H(c_x,x)) \/ J(c_x,x))) /\
+(~P(x) \/ G(f_y'(x)) /\ H(x,f_y'(x)))
+
+Formulas agree! ✓
+-/
+#guard print_fol p45_to_check ==
+  "(((~P(x) ∨ (G(f_y(x)) ∧ H(x, f_y(x))) ∧ ~J(x, f_y(x))) ∨ (~G(y) ∨ ~H(x, y)) ∨ R(y)) ∧ (~L(x) ∨ ~R(x)) ∧ P(c_x) ∧ (~H(c_x, x) ∨ L(x)) ∧ ((~G(x) ∨ ~H(c_x, x)) ∨ J(c_x, x))) ∧ (~P(x) ∨ G(f_y'(x)) ∧ H(x, f_y'(x)))"
+/-
+Debugging info for `gilmore p45` that appear to be incorrect on `ade0919`
+
+Us: DNF rep has 90 disjuncts
+
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), J(c_x, x), L(x), P(c_x), ~J(x, f_y(x)), ~R(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~L(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~R(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), L(x), P(c_x), ~G(x), ~J(x, f_y(x)), ~R(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), L(x), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~R(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~H(c_x, x), ~J(x, f_y(x)), ~L(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~H(c_x, x), ~J(x, f_y(x)), ~R(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~L(x)],
+[G(f_y(x)), G(f_y'(x)), H(x, f_y(x)), H(x, f_y'(x)), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~R(x)],
+[G(f_y(x)), H(x, f_y(x)), J(c_x, x), L(x), P(c_x), ~J(x, f_y(x)), ~P(x), ~R(x)],
+[G(f_y(x)), H(x, f_y(x)), J(c_x, x), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~L(x), ~P(x)],
+[G(f_y(x)), H(x, f_y(x)), J(c_x, x), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~P(x), ~R(x)],
+[G(f_y(x)), H(x, f_y(x)), L(x), P(c_x), ~G(x), ~J(x, f_y(x)), ~P(x), ~R(x)],
+[G(f_y(x)), H(x, f_y(x)), L(x), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~P(x), ~R(x)],
+[G(f_y(x)), H(x, f_y(x)), P(c_x), ~G(x), ~H(c_x, x), ~J(x, f_y(x)), ~L(x), ~P(x)],
+[G(f_y(x)), H(x, f_y(x)), P(c_x), ~G(x), ~H(c_x, x), ~J(x, f_y(x)), ~P(x), ~R(x)],
+[G(f_y(x)), H(x, f_y(x)), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~L(x), ~P(x)],
+[G(f_y(x)), H(x, f_y(x)), P(c_x), ~H(c_x, x), ~J(x, f_y(x)), ~P(x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), L(x), P(c_x), R(y), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), L(x), P(c_x), ~G(y), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), L(x), P(c_x), ~H(x, y), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), L(x), P(c_x), ~P(x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), R(y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), R(y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~G(y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~G(y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~H(x, y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~H(x, y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~H(c_x, x), ~L(x), ~P(x)],
+[G(f_y'(x)), H(x, f_y'(x)), J(c_x, x), P(c_x), ~H(c_x, x), ~P(x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), R(y), ~G(x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), R(y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), ~G(x), ~G(y), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), ~G(x), ~H(x, y), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), ~G(x), ~P(x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), ~G(y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), ~H(x, y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), L(x), P(c_x), ~H(c_x, x), ~P(x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), R(y), ~G(x), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), R(y), ~G(x), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), R(y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), R(y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~G(y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~G(y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~H(x, y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~H(x, y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~H(c_x, x), ~L(x), ~P(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(x), ~H(c_x, x), ~P(x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~G(y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~H(x, y), ~H(c_x, x), ~L(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~H(x, y), ~H(c_x, x), ~R(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~H(c_x, x), ~L(x), ~P(x)],
+[G(f_y'(x)), H(x, f_y'(x)), P(c_x), ~H(c_x, x), ~P(x), ~R(x)],
+[J(c_x, x), L(x), P(c_x), R(y), ~P(x), ~R(x)],
+[J(c_x, x), L(x), P(c_x), ~G(y), ~P(x), ~R(x)],
+[J(c_x, x), L(x), P(c_x), ~H(x, y), ~P(x), ~R(x)],
+[J(c_x, x), L(x), P(c_x), ~P(x), ~R(x)],
+[J(c_x, x), P(c_x), R(y), ~H(c_x, x), ~L(x), ~P(x)],
+[J(c_x, x), P(c_x), R(y), ~H(c_x, x), ~P(x), ~R(x)],
+[J(c_x, x), P(c_x), ~G(y), ~H(c_x, x), ~L(x), ~P(x)],
+[J(c_x, x), P(c_x), ~G(y), ~H(c_x, x), ~P(x), ~R(x)],
+[J(c_x, x), P(c_x), ~H(x, y), ~H(c_x, x), ~L(x), ~P(x)],
+[J(c_x, x), P(c_x), ~H(x, y), ~H(c_x, x), ~P(x), ~R(x)],
+[J(c_x, x), P(c_x), ~H(c_x, x), ~L(x), ~P(x)],
+[J(c_x, x), P(c_x), ~H(c_x, x), ~P(x), ~R(x)],
+[L(x), P(c_x), R(y), ~G(x), ~P(x), ~R(x)],
+[L(x), P(c_x), R(y), ~H(c_x, x), ~P(x), ~R(x)],
+[L(x), P(c_x), ~G(x), ~G(y), ~P(x), ~R(x)],
+[L(x), P(c_x), ~G(x), ~H(x, y), ~P(x), ~R(x)],
+[L(x), P(c_x), ~G(x), ~P(x), ~R(x)],
+[L(x), P(c_x), ~G(y), ~H(c_x, x), ~P(x), ~R(x)],
+[L(x), P(c_x), ~H(x, y), ~H(c_x, x), ~P(x), ~R(x)],
+[L(x), P(c_x), ~H(c_x, x), ~P(x), ~R(x)],
+[P(c_x), R(y), ~G(x), ~H(c_x, x), ~L(x), ~P(x)],
+[P(c_x), R(y), ~G(x), ~H(c_x, x), ~P(x), ~R(x)],
+[P(c_x), R(y), ~H(c_x, x), ~L(x), ~P(x)],
+[P(c_x), R(y), ~H(c_x, x), ~P(x), ~R(x)],
+[P(c_x), ~G(x), ~G(y), ~H(c_x, x), ~L(x), ~P(x)],
+[P(c_x), ~G(x), ~G(y), ~H(c_x, x), ~P(x), ~R(x)],
+[P(c_x), ~G(x), ~H(x, y), ~H(c_x, x), ~L(x), ~P(x)],  <--|
+[P(c_x), ~G(x), ~H(x, y), ~H(c_x, x), ~P(x), ~R(x)],     |
+[P(c_x), ~G(x), ~H(c_x, x), ~L(x), ~P(x)],               |-- subsumed!
+[P(c_x), ~G(x), ~H(c_x, x), ~P(x), ~R(x)],               |
+[P(c_x), ~G(y), ~H(c_x, x), ~L(x), ~P(x)],  <------------|
+[P(c_x), ~G(y), ~H(c_x, x), ~P(x), ~R(x)],
+[P(c_x), ~H(x, y), ~H(c_x, x), ~L(x), ~P(x)],                    <--|
+[P(c_x), ~H(x, y), ~H(c_x, x), ~P(x), ~R(x)],  <--|                 |- subsumed!
+[P(c_x), ~H(c_x, x), ~L(x), ~P(x)],               |- subsumed!   <--|
+[P(c_x), ~H(c_x, x), ~P(x), ~R(x)]             <--|
+
+Handbook: DNF rep has 20 disjuncts
+
+[G(f_y(x)), G(f_y'(x)), H(x,f_y(x)), H(x,f_y'(x)), J(c_x,x), L(x), P(c_x), ~J(x,f_y(x)), ~R(x)],
+[G(f_y(x)), G(f_y'(x)), H(x,f_y(x)), H(x,f_y'(x)), L(x), P(c_x), ~G(x), ~J(x,f_y(x)), ~R(x)],
+[G(f_y(x)), G(f_y'(x)), H(x,f_y(x)), H(x,f_y'(x)), P(c_x), ~H(c_x,x), ~J(x,f_y(x)), ~L(x)],
+[G(f_y(x)), G(f_y'(x)), H(x,f_y(x)), H(x,f_y'(x)), P(c_x), ~H(c_x,x), ~J(x,f_y(x)), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), J(c_x,x), L(x), P(c_x), R(y), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), J(c_x,x), L(x), P(c_x), ~G(y), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), J(c_x,x), L(x), P(c_x), ~H(x,y), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), L(x), P(c_x), R(y), ~G(x), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), L(x), P(c_x), ~G(x), ~G(y), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), L(x), P(c_x), ~G(x), ~H(x,y), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), P(c_x), R(y), ~H(c_x,x), ~L(x)],
+[G(f_y'(x)), H(x,f_y'(x)), P(c_x), R(y), ~H(c_x,x), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), P(c_x), ~G(y), ~H(c_x,x), ~L(x)],
+[G(f_y'(x)), H(x,f_y'(x)), P(c_x), ~G(y), ~H(c_x,x), ~R(x)],
+[G(f_y'(x)), H(x,f_y'(x)), P(c_x), ~H(x,y), ~H(c_x,x), ~L(x)],
+[G(f_y'(x)), H(x,f_y'(x)), P(c_x), ~H(x,y), ~H(c_x,x), ~R(x)],
+[J(c_x,x), L(x), P(c_x), ~P(x), ~R(x)],
+[L(x), P(c_x), ~G(x), ~P(x), ~R(x)],
+[P(c_x), ~H(c_x,x), ~L(x), ~P(x)],
+[P(c_x), ~H(c_x,x), ~P(x), ~R(x)]
+-/
+#guard (DNF.simpdnf p45_to_check).length == 20
+
+-- The clausal representation of the formula to be checked agrees exactly with
+-- Pelletier's translation of no. 45 to skolemized CNF. Also agrees with the Handbook's
+-- answer ✓
 #guard print_fol_sets (CNF.simpcnf p45_to_check) ==
   [["G(f_y(x))", "R(y)", "~G(y)", "~H(x, y)", "~P(x)"],
    ["G(f_y'(x))", "~P(x)"],
@@ -120,8 +268,7 @@ def test_cases : List (String × Formula Fol × String × (Formula Fol → Nat))
     ("p18", p18, "gilmore", gilmore),
     ("p24", p24, "gilmore", gilmore),
     ("p35", p35, "gilmore", gilmore),
-    -- TODO: XXX: proving p45 currently overflows the stack
-    ("p45", p45, "gilmore", gilmore),
+    ("p45", p45, "gilmore", gilmore),  -- starbuck: 779,055,472 ns
   ]
 
 def main : IO Unit := do
@@ -131,4 +278,5 @@ def main : IO Unit := do
     let res := tester fm
     let end_ <- IO.monoNanosNow
     IO.println s!"Done: no. instances tried {res}. Duration {end_ - start} ns"
+    IO.println "----"
     )
