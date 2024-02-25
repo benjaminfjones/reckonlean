@@ -56,6 +56,23 @@ def p18_to_check := skolemize (.Not (generalize p18))
 
 
 /--
+Pelletier problem no. 20
+-/
+def p20 :=
+  <|"(forall x y. exists z. forall w. (P(x) ∧ Q(y)) ==>
+     (R(z) ∧ S(w))) ==>
+     (exists x y. (P(x) ∧ Q(y))) ==> exists z. R(z)"|>
+def p20_to_check := skolemize (.Not (generalize p20))
+-- Agrees with Pelletier ✓
+#guard print_fol_sets (CNF.simpcnf p20_to_check) ==
+  [["P(c_x)"],
+   ["Q(c_y)"],
+   ["R(f_z(x, y))", "~P(x)", "~Q(y)"],
+   ["S(w)", "~P(x)", "~Q(y)"],
+   ["~R(x)"]]
+
+
+/--
 Pelletier problem 24
 
 One of the "tedious monadic logic problems from Kalish and Montague (1964)".
@@ -269,6 +286,9 @@ def test_cases : List (String × Formula Fol × String × (Formula Fol → Nat))
     ("p24", p24, "gilmore", gilmore),
     ("p35", p35, "gilmore", gilmore),
     ("p45", p45, "gilmore", gilmore),  -- starbuck: 779,055,472 ns
+    -- p20 gets to: n=2, |tried|=34 ground instances tried; |fl| = 20060 disj/conj
+    -- and then stalls out
+    ("p20", p20, "golmore", gilmore),
   ]
 
 def main : IO Unit := do
