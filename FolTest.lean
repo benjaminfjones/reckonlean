@@ -1,4 +1,5 @@
 import ReckonLean.Fol
+import ReckonLean.Herbrand
 
 /--
 The "drinkers principle"; there exists a person `x` such that if `x` drinks then everyone does.
@@ -286,9 +287,9 @@ def test_cases : List (String × Formula Fol × String × (Formula Fol → Nat))
     ("p24", p24, "gilmore", gilmore),
     ("p35", p35, "gilmore", gilmore),
     ("p45", p45, "gilmore", gilmore),  -- starbuck: 779,055,472 ns
-    -- p20 gets to: n=2, |tried|=34 ground instances tried; |fl| = 20060 disj/conj
-    -- and then stalls out
-    ("p20", p20, "golmore", gilmore),
+    -- `gilmore p20` gets to: n=2, |tried|=34 ground instances tried; |fl| = 20060 disj/conj
+    -- and then stalls out due to the exposion of disjuncts
+    -- ("p20", p20, "gilmore", gilmore),
   ]
 
 def main : IO Unit := do

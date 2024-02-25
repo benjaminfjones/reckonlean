@@ -9,7 +9,7 @@ import ReckonLean.Adder
 import ReckonLean.Ramsey
 import ReckonLean.Mult
 import ReckonLean.Fol
-
+import ReckonLean.Herbrand
 
 
 def main : IO Unit :=
