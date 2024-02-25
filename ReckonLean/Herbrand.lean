@@ -141,20 +141,6 @@ partial def herbloop
       dbg_trace s!"  * new set of ground instances is still SAT; continuing..."
       herbloop mfn tfn fl0 consts funcs fvs n fl' (tup::tried) tups
 
-
-/--
-Setup `herbloop` for the Gilmore procedure.
-
-The formulas and ground instances are kept in disjunctive normal form and the
-test function is the usual simplification + contradiction checker on DNF set-of-sets
-representations.
--/
-def gilmore_loop :=
-  herbloop
-    (fun djs0 ifn djs =>
-      List.filterTR (non contra) (CNF.pure_distrib (Set.image (Set.image ifn) djs0) djs))
-    (fun djs => djs != [])
-
 /--
 The Gilmore procedure for first-order **validity** checking.
 
@@ -162,10 +148,21 @@ The formula is universally generalized, negated, and then Skolemized to eliminat
 existential quantifiers. We test the result for unsatisfiability by systematically
 exploring sets of ground instances from the Herbrand universe for the Skolemized
 formula.
+
+The formulas and ground instances are kept in disjunctive normal form and the
+test function is the usual simplification + contradiction checker on DNF set-of-sets
+representations.
 -/
 def gilmore (fm: Formula Fol) : Nat :=
   let sfm := skolemize (.Not (generalize fm))
   let fvs := free_vars sfm
   let (consts, funcs) := herbfuncs sfm
   let consts := Set.image (fun (c,_) => Fn c []) consts
-  List.length $ gilmore_loop (DNF.simpdnf sfm) consts funcs fvs 0 [[]] [] []
+
+  -- modification function
+  let mfn djs0 ifn djs :=
+    List.filterTR (non contra) (CNF.pure_distrib (Set.image (Set.image ifn) djs0) djs)
+  -- satisfiability test function
+  let tfn djs := not djs.isEmpty
+
+  List.length $ herbloop mfn tfn (DNF.simpdnf sfm) consts funcs fvs 0 [[]] [] []
