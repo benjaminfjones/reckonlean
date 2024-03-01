@@ -420,7 +420,7 @@ theorem max_var_name_mem : ∀ (v: String), ∀ (vars: List String),
 /- Produce a variant of `x` by adding primes until the variant doesn't occur in `xs` -/
 def variant (x: String) (xs: List String) : String :=
   if _hm : List.mem x xs then let x' := s!"{x}'"; variant x' xs else x
-termination_by variant x xs => max_var_name xs + 1 - x.length
+termination_by max_var_name xs + 1 - x.length
 decreasing_by
   simp_wf
   unfold List.mem List.contains at _hm  -- reduce to application of List.elem

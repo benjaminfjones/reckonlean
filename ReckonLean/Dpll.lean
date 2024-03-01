@@ -268,17 +268,14 @@ def backjump (clauses: PCNFFormula) (p: PFormula) (trail: Trail) : Trail :=
     if List.mem [] st.clauses then
       -- BEGIN fact to use in termination proof
       have _ : List.length tt < List.length trail := by
-        simp_all
+        simp only [List.length_cons, hbt] at *
         apply Nat.lt_of_succ_le; assumption
       -- END
       backjump clauses p tt
     else
       trail
   | _ => trail
-termination_by backjump _ _ tr => tr.length
-decreasing_by
-  simp_wf
-  assumption  -- WOOT
+termination_by trail.length
 
 partial def dplb_aux (learn: Bool) (clauses: PCNFFormula) (trail: Trail) : Bool :=
   -- dbg_trace s!"====\ndplb: starting trail = {trail}"

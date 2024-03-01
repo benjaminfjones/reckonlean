@@ -1,4 +1,6 @@
 import Std.Tactic.GuardExpr  -- provides #guard
+import Std.Tactic.Omega
+import Std.Tactic.SimpTrace
 
 def non (p : α → Bool) (x: α) : Bool := not (p x)
 example : List.map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] := by rfl
@@ -182,12 +184,7 @@ where
             assumption
 
           h2 :: aux_union l1 t2
-  termination_by aux_union l1 l2 => l1.length + l2.length
-  decreasing_by
-    -- TODO: figure out how to share common parts of the termination proofs of
-    -- `union`, `intersect`, and `allsubsets`
-    simp_wf
-    assumption
+  termination_by l1.length + l2.length
 
 #guard union [1,2,3] [4,5] == [1, 2, 3, 4, 5]
 #guard union [1,2,3] [1, 2, 3] == [1, 2, 3]
@@ -229,7 +226,7 @@ where
             union
               (List.mapTR (union [ x ]) (aux (sz - 1) rest))
               (aux sz rest))
-  termination_by aux _ xs => xs.length
+  termination_by xs.length
 
 #guard allsubsets 4 [1,2,3] == []
 #guard allsubsets 3 [1,2,3] == [[1, 2, 3]]
@@ -246,32 +243,21 @@ is carried out below for the fun of it.
 def intersect (l1 l2: List α) : List α :=
   aux (setify l1) (setify l2)
 where
-  aux
+  aux j1 j2 := match j1, j2 with
     | [], _ => []
     | _, [] => []
     | l1@(h1 :: t1), l2@(h2 :: t2) =>
-        have _ : sizeOf t1 < 1 + sizeOf t1 := by simp_arith
-        have _ : sizeOf t2 < 1 + sizeOf t2 := by simp_arith
-        have _ : sizeOf t1 < sizeOf l1 := by simp [*]
-        have _ : sizeOf t2 < sizeOf l2 := by simp [*]
         if h1 == h2 then
-          have _ : sizeOf t1 + sizeOf t2 < 1 + sizeOf t1 + (1 + sizeOf t2) := by simp_arith
+          have _ : t1.length + t2.length < 2 + t1.length + (1 + t2.length) := by simp_arith
           h1 :: aux t1 t2
         else
           if compare h1 h2 == lt then
-            have _ : sizeOf t1 + sizeOf l2 < 1 + sizeOf t1 + sizeOf l2 := by simp_arith
+            have _ : t1.length + l2.length < 1 + t1.length + l2.length := by simp_arith
             aux t1 l2
           else
-            have _ : sizeOf l1 + sizeOf t2 < sizeOf l1 + (1 + sizeOf t2) := by simp_arith
+            have _ : l1.length + t2.length < l1.length + (1 + t2.length) := by simp_arith
             aux l1 t2
-  termination_by aux l1 l2 => sizeOf l1 + sizeOf l2
-  decreasing_by
-    /- unfold definitions about well-founded relations -/
-    simp_wf
-    /- apply the high-power simplifies once all the `have` hypotheses are
-       in scope. Each of the simultaneously focused goals produced by
-       `decreasing_by` is then solved by assumption -/
-    simp_all
+  termination_by j1.length + j2.length
 
 #guard intersect [1,2,3] [4,5] == []
 #guard intersect [1,2,3] [3, 4,5] == [3]
@@ -290,8 +276,6 @@ where
     | ([], _) => []
     | (_, []) => l1
     | (h1 :: t1, h2 :: t2) =>
-        have _ : t1.length < t1.length + 1 := Nat.lt_succ_self _
-        have _ : t2.length < t2.length + 1 := Nat.lt_succ_self _
         have _ : t1.length < l1.length := by
           have hl : l1 = h1 :: t1 := congrArg Prod.fst hc
           rw [hl, List.length_cons h1 t1]
@@ -319,10 +303,7 @@ where
             assumption
 
           subaux l1 t2
-  termination_by subaux l1 l2 => l1.length + l2.length
-  decreasing_by
-    simp_wf
-    assumption
+  termination_by l1.length + l2.length
 
 #guard subtract [1,2,3,4] [2,3] == [1,4]
 #guard subtract [] [2,3] == []

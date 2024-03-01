@@ -29,7 +29,7 @@ def lexwhile (prop : Char -> Bool) (inp: List Char) : token × List Char :=
       let (tok, rest) := lexwhile prop cs
       (String.append c.toString tok, rest)
     else ("", inp)
-termination_by lexwhile prop inp => List.length inp
+termination_by inp.length
 
 /- The `Char`s argument of `lexwhile` monotonically decreases -/
 theorem lexwhile_monotonic : ∀ (p : Char → Bool) (inp: List Char), (lexwhile p inp).snd.length ≤ inp.length := by
@@ -53,7 +53,7 @@ def lex (inp : List Char) : tokens :=
 
       let trest := lexwhile prop cs
       (String.append c.toString trest.fst) :: lex trest.snd
-termination_by lex inp => List.length inp
+termination_by inp.length
 decreasing_by
   simp_wf
   calc
