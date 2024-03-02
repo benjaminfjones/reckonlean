@@ -6,23 +6,24 @@ import ReckonLean.Prop
 Davis-Putnam and Davis-Putnam-Loveland-Logemann procedures
 -/
 
-abbrev PCNFFormula := List (List (Formula Prp))
+variable {α : Type} [BEq α] [Ord α] [Repr α] [Hashable α]
+abbrev PCNFFormula (α: Type) := List (List (Formula α))
 
 /- ------------------------------------------------------------------------- -/
 /- The Davis-Putnam procedure.                                               -/
 /- ------------------------------------------------------------------------- -/
 
-def one_literal_rule (clauses : PCNFFormula) : Option PCNFFormula :=
+def one_literal_rule (clauses : PCNFFormula α ) : Option (PCNFFormula α) :=
   Option.map (unit_prop clauses) (List.find? (fun cl => List.length cl == 1) clauses)
 where
-  unit_prop (clauses: PCNFFormula) (pcl: List (Formula Prp)) : PCNFFormula :=
+  unit_prop (clauses: PCNFFormula α) (pcl: List (Formula α)) : PCNFFormula α :=
     let u := List.head! pcl
     -- dbg_trace "unit_prop: {print_pf u}"
     let u' := negate u
     let clauses' := List.filter (fun cl => not (List.mem u cl)) clauses
     Set.set_image (fun cl => Set.subtract cl [ u' ]) clauses'
 
-def affirmative_negative_rule (clauses : PCNFFormula) : Option PCNFFormula :=
+def affirmative_negative_rule (clauses : PCNFFormula α) : Option (PCNFFormula α) :=
   let lits := Set.unions clauses
   let (neg', pos) := List.partition negative lits
   let neg := Set.set_image negate neg'
@@ -36,7 +37,7 @@ def affirmative_negative_rule (clauses : PCNFFormula) : Option PCNFFormula :=
   else some (List.filter (fun cl => Set.intersect cl pure == []) clauses)
 
 /- Resolve the formula on a literal `p` -/
-def resolve_on (lit : Formula Prp) (clauses : PCNFFormula) : PCNFFormula :=
+def resolve_on (lit : Formula α) (clauses : PCNFFormula α) : PCNFFormula α :=
   -- dbg_trace "resolve_on: {print_pf lit}"
   let lit' := negate lit
   let (pos, notpos) := List.partition (List.mem lit) clauses
@@ -52,13 +53,13 @@ def resolve_on (lit : Formula Prp) (clauses : PCNFFormula) : PCNFFormula :=
 
 /- Heuristic for determing how large the formula blow-up is when applying
    `resolve_on` to a given literal. -/
-def resolution_blowup (cls : PCNFFormula) (l : Formula Prp) : Int :=
+def resolution_blowup (cls : PCNFFormula α) (l : Formula α) : Int :=
   let m := List.length (List.filterTR (List.mem l) cls)
   let n := List.length (List.filterTR (List.mem (negate l)) cls)
   (m * n) - m - n
 
 /- Apply `resolve_on` for the best literal according to heuristics -/
-def resolution_rule (clauses: PCNFFormula) : Option PCNFFormula :=
+def resolution_rule (clauses: PCNFFormula α) : Option (PCNFFormula α):=
   -- dbg_trace s!"resolution_rule: #clauses {clauses.length}"
   let pvs := List.filterTR positive (Set.unions clauses)
   Option.map (fun p => resolve_on p clauses)
@@ -68,7 +69,7 @@ def resolution_rule (clauses: PCNFFormula) : Option PCNFFormula :=
 /- Overall procedure.                                                        -/
 /- ------------------------------------------------------------------------- -/
 
-partial def dp (clauses: PCNFFormula) : Bool :=
+partial def dp (clauses: PCNFFormula α) : Bool :=
   -- dbg_trace s!"dp: #clauses {List.length clauses}"
   if clauses == [] then true
   else if List.mem [] clauses then false
@@ -100,14 +101,14 @@ def dptaut fm := not (dpsat (.Not fm))
 /- ------------------------------------------------------------------------- -/
 
 /- Count occurances of a literal or its negation in the formula -/
-def posneg_count (clauses: PCNFFormula) (lit: PFormula) : Nat :=
+def posneg_count (clauses: PCNFFormula α) (lit: Formula α) : Nat :=
   let lit' := negate lit
   let m := List.length (List.filterTR (fun cl => List.mem lit cl) clauses)
   let n := List.length (List.filterTR (fun cl => List.mem lit' cl) clauses)
   m + n
 
 /- DPPL: naive recursive version -/
-partial def dpll (clauses: PCNFFormula) : Bool :=
+partial def dpll (clauses: PCNFFormula α) : Bool :=
   -- dbg_trace s!"dp: #clauses {List.length clauses}"
   if clauses == [] then true
   else if List.mem [] clauses then false
@@ -139,34 +140,34 @@ inductive LitState where
   | Deduced
 deriving Repr, BEq
 
-structure Decision where
-  literal: PFormula
+structure Decision (α : Type) where
+  literal: Formula α
   decision: LitState
 deriving Repr
 
-instance : ToString Decision where
+instance : ToString (Decision α) where
   toString d :=
     let marker := if d.decision == .Guessed then "|" else ""
-    s!"{marker}{print_qliteral print_prp d.literal}"
+    s!"{marker}{print_qliteral (fun _ p => reprStr p) d.literal}"
 
-abbrev Trail := List Decision
+abbrev Trail (α: Type) := List (Decision α)
 
-def unassigned (clauses: PCNFFormula) (trail: Trail) : List PFormula :=
+def unassigned (clauses: PCNFFormula α) (trail: Trail α) : List (Formula α) :=
   Set.subtract all_vars dec_vars
 where
   all_vars := Set.unions (Set.image (Set.image litabs) clauses)
   dec_vars := Set.image (litabs ∘ Decision.literal) trail
 
-structure UnitPropState where
-  clauses: PCNFFormula
-  lookup: Func PFormula Unit
-  trail: Trail
+structure UnitPropState (α: Type) [BEq α] [Hashable α] where
+  clauses: PCNFFormula α
+  lookup: Func (Formula α) Unit
+  trail: Trail α
 
 /- Apply unit propagation iteratively until reaching a fixpoint -/
-partial def unit_subpropagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
+partial def unit_subpropagate (msg: String := "") (st: UnitPropState α) : UnitPropState α :=
   -- filter the negation of defined literals out of current clauses
   let clauses' := List.mapTR (List.filterTR (not ∘ (defined st.lookup) ∘ negate)) st.clauses
-  let newu : List PFormula → Option (List PFormula)
+  let newu : List (Formula α)  → Option (List (Formula α))
     | [c] => if not (defined st.lookup c) then some [c] else none
     | _ => none
   match Set.unions (List.filterMap newu clauses') with
@@ -179,19 +180,19 @@ partial def unit_subpropagate (msg: String := "") (st: UnitPropState) : UnitProp
     let lookup' := List.foldl (fun l u => (u |-> ()) l) st.lookup us
     unit_subpropagate msg {clauses := clauses', lookup := lookup', trail := trail'}
 
-def unit_propagate (msg: String := "") (st: UnitPropState) : UnitPropState :=
+def unit_propagate (msg: String := "") (st: UnitPropState α) : UnitPropState α :=
   let current_lookup := List.foldl (fun lk d => (d.literal |-> ()) lk) undefined st.trail
   let st' := unit_subpropagate msg {st with lookup := current_lookup}
   -- current_lookup is only used in the subpropagate function
   {st' with lookup := undefined}
 
 /- Backtrack to the last `Guessed` literal -/
-def backtrack : Trail → Trail
+def backtrack : Trail α → Trail α
   | [] => []
   | trail@(d :: ds) => if d.decision == .Deduced then backtrack ds else trail
 
 /- `backtrack` is monotonically decreasing -/
-theorem length_backtrack : ∀ tr : Trail,
+theorem length_backtrack : ∀ tr : Trail α,
   List.length (backtrack tr) ≤ List.length tr := by
     intro t
     induction t with
@@ -202,7 +203,7 @@ theorem length_backtrack : ∀ tr : Trail,
       . simp
       . simp; apply Nat.le_succ_of_le; assumption
 
-partial def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
+partial def dpli_aux (clauses: PCNFFormula α) (trail: Trail α) : Bool :=
   let st := unit_propagate "dpli" {clauses, lookup := undefined, trail}
   if List.mem [] st.clauses then
     match backtrack trail with
@@ -219,7 +220,7 @@ partial def dpli_aux (clauses: PCNFFormula) (trail: Trail) : Bool :=
         let l := (List.maximize (posneg_count st.clauses) ls).get!  -- `ls` is non-empty
         dpli_aux clauses ({literal := l, decision := .Guessed} :: st.trail)
 
-def dpli (clauses: PCNFFormula) : Bool :=
+def dpli (clauses: PCNFFormula α) : Bool :=
   dpli_aux clauses []
 
 def dplisat := dpli ∘ CNF.defcnf_opt_sets
@@ -257,7 +258,7 @@ to try backjumping to.
 
 Termination is proved using a monotonicity theorem about `backtrack`
 -/
-def backjump (clauses: PCNFFormula) (p: PFormula) (trail: Trail) : Trail :=
+def backjump (clauses: PCNFFormula α) (p: Formula α) (trail: Trail α) : Trail α :=
   match hbt : backtrack trail with  -- naming hypothesis `hbt` puts the match branch assumptions in context
   | {literal := _, decision := .Guessed} :: tt =>
     -- fact to use in termination proof
@@ -268,7 +269,7 @@ def backjump (clauses: PCNFFormula) (p: PFormula) (trail: Trail) : Trail :=
     if List.mem [] st.clauses then
       -- BEGIN fact to use in termination proof
       have _ : List.length tt < List.length trail := by
-        simp only [List.length_cons, hbt] at *
+        simp_all
         apply Nat.lt_of_succ_le; assumption
       -- END
       backjump clauses p tt
@@ -277,7 +278,7 @@ def backjump (clauses: PCNFFormula) (p: PFormula) (trail: Trail) : Trail :=
   | _ => trail
 termination_by trail.length
 
-partial def dplb_aux (learn: Bool) (clauses: PCNFFormula) (trail: Trail) : Bool :=
+partial def dplb_aux (learn: Bool) (clauses: PCNFFormula α) (trail: Trail α) : Bool :=
   -- dbg_trace s!"====\ndplb: starting trail = {trail}"
   let st := unit_propagate "dplb" {clauses, lookup := undefined, trail}
   -- conflict
@@ -316,14 +317,14 @@ partial def dplb_aux (learn: Bool) (clauses: PCNFFormula) (trail: Trail) : Bool 
 -- termination_by length of {unassigned literals in trail}
 
 /- DPLL with backjumping without clause learning -/
-def dplb (clauses: PCNFFormula) : Bool :=
+def dplb (clauses: PCNFFormula α) : Bool :=
   dplb_aux false clauses []
 
 def dplbsat := dplb ∘ CNF.defcnf_opt_sets
 def dplbtaut := not ∘ dplbsat ∘ (.Not ·)
 
 /- DPLL with backjumping and simple clause learning -/
-def dplb' (clauses: PCNFFormula) : Bool :=
+def dplb' (clauses: PCNFFormula α) : Bool :=
   dplb_aux true clauses []
 
 def dplb'sat := dplb' ∘ CNF.defcnf_opt_sets
