@@ -283,13 +283,21 @@ Handbook: DNF rep has 20 disjuncts
 
 def test_cases : List (String × Formula Fol × String × (Formula Fol → Nat)) :=
   [
+    -- Gilmore Procedure
     ("p18", p18, "gilmore", gilmore),
     ("p24", p24, "gilmore", gilmore),
     ("p35", p35, "gilmore", gilmore),
-    ("p45", p45, "gilmore", gilmore),  -- starbuck: 779,055,472 ns
+    ("p45", p45, "gilmore", gilmore),  -- starbuck (Lean v4.6.0): 413,589,917 ns
     -- `gilmore p20` gets to: n=2, |tried|=34 ground instances tried; |fl| = 20060 disj/conj
     -- and then stalls out due to the exposion of disjuncts
     -- ("p20", p20, "gilmore", gilmore),
+
+    -- Davis-Putnum Procedure
+    ("p18", p18, "davisputnam", davisputnam),
+    ("p24", p24, "davisputnam", davisputnam),
+    ("p35", p35, "davisputnam", davisputnam),
+    ("p45", p45, "davisputnam", davisputnam),  -- starbuck (Lean v4.6.0): 77,083 ns
+    ("p20", p20, "davisputnam", davisputnam),  -- starbuck (Lean v4.6.0): 35,083 ns
   ]
 
 def main : IO Unit := do
