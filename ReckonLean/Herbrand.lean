@@ -166,3 +166,27 @@ def gilmore (fm: Formula Fol) : Nat :=
   let tfn djs := not djs.isEmpty
 
   List.length $ herbloop mfn tfn (DNF.simpdnf sfm) consts funcs fvs 0 [[]] [] []
+
+
+/--
+The Davis-Putnam procedure for first-order **validity** checking.
+
+The formula is universally generalized, negated, and then Skolemized to eliminate
+existential quantifiers. We test the result for unsatisfiability by systematically
+exploring sets of ground instances from the Herbrand universe for the Skolemized
+formula.
+
+The formulas and ground instances are kept in **conjunctive** normal form in order
+to avoid the explosion of disjuncts in `gilmore`. The test function is the DPLL
+procedure.
+-/
+def davisputnam (fm: Formula Fol) : Nat :=
+  let sfm := skolemize (.Not (generalize fm))
+  let fvs := free_vars sfm
+  let (consts, funcs) := herbfuncs sfm
+  let consts := Set.image (fun (c,_) => Fn c []) consts
+
+  -- modification function
+  let mfn djs0 ifn djs := Set.union (Set.image (Set.image ifn) djs0) djs
+
+  List.length $ herbloop mfn dpll (CNF.simpcnf sfm) consts funcs fvs 0 [[]] [] []
