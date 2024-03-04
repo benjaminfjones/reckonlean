@@ -86,18 +86,42 @@ def uniq : List α → List α
   | l => l
 
 /- Merging of sorted lists (maintaining repetitions) -/
-partial def merge(l1 l2: List α) : List α :=
+def merge(l1 l2: List α) : List α :=
   match l1 with
   | [] => l2
-  | h1 :: t1 => (
+  | l1@(h1 :: t1) => (
       match l2 with
       | [] => l1
-      | h2 :: t2 =>
+      | l2@(h2 :: t2) =>
+          have _ : t1.length + l2.length < l1.length + l2.length := by
+            simp only [List.length_cons, *]
+            omega
+          have _ : l1.length + t2.length < l1.length + l2.length := by
+            simp only [List.length_cons, *]
+            omega
           if (compare h1 h2).isLE then h1 :: merge t1 l2 else h2 :: merge l1 t2)
--- termination_by merge l1 l2 => l1.length + l2.length
+termination_by l1.length + l2.length
 
-#guard merge [] [1,2] == [1, 2]  -- true
-#guard merge [5] [1,2] == [1, 2, 5]  -- true
+theorem merge_length : ∀ (l1 l2: List α), (merge l1 l2).length = l1.length + l2.length := by
+  intro l1 l2
+  match l1 with
+  | .nil => unfold merge; rw [List.length_nil, Nat.zero_add]
+  | .cons h1 t1 =>
+    unfold merge
+    match l2 with
+    | .nil => simp only [List.length_cons, List.length_nil, Nat.add_zero]
+    | .cons h2 t2 =>
+      simp only [List.length_cons]
+      split
+      . rw [List.length_cons, merge_length t1 (h2 :: t2)]
+        simp only [List.length_cons]
+        omega
+      . rw [List.length_cons, merge_length (h1 :: t1) t2]
+        simp only [List.length_cons]
+        omega
+
+#guard merge [] [1,2] == [1, 2]
+#guard merge [5] [1,2] == [1, 2, 5]
 #guard merge [1,2] [1,3] == [1, 1, 2, 3]
 
 partial def mergepairs : List (List α) → List (List α) → List α
