@@ -4,7 +4,7 @@ import ReckonLean.FPF
 import ReckonLean.Parser
 import ReckonLean.Prop
 
-import Std.Data.List.Lemmas
+import Batteries.Data.List.Lemmas
 
 open Formula
 
@@ -419,16 +419,14 @@ theorem max_var_name_mem : ∀ (v: String), ∀ (vars: List String),
 
 /- Produce a variant of `x` by adding primes until the variant doesn't occur in `xs` -/
 def variant (x: String) (xs: List String) : String :=
-  if _hm : List.mem x xs then let x' := s!"{x}'"; variant x' xs else x
+  if _hm : List.mem x xs then let x' := x ++ "'"; variant x' xs else x
 termination_by max_var_name xs + 1 - x.length
 decreasing_by
   simp_wf
   unfold List.mem List.contains at _hm  -- reduce to application of List.elem
-  have h : x.length ≤ max_var_name xs := max_var_name_mem x xs (List.mem_of_elem_eq_true _hm)
-  have hh : x.length < x'.length := calc
-    x.length < x.length + 1 := Nat.lt_succ_self _
-    _        = x'.length := by apply Eq.symm; apply List.length_append
-  exact Nat.sub_lt_sub_left (Nat.lt_succ_of_le h) hh
+  have : x.length ≤ max_var_name xs := max_var_name_mem x xs (List.mem_of_elem_eq_true _hm)
+  have h' : "'".length = 1 := by rfl
+  omega
 
 #guard variant "x" ["z", "y"] == "x"
 #guard variant "x" ["x", "y"] == "x'"

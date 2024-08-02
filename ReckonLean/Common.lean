@@ -1,6 +1,5 @@
-import Std.Tactic.GuardExpr  -- provides #guard
-import Std.Tactic.Omega
-import Std.Tactic.SimpTrace
+import Lean.Elab.Tactic.Omega
+import Lean.Elab.Tactic.SimpTrace
 
 def non (p : α → Bool) (x: α) : Bool := not (p x)
 example : List.map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] := by rfl

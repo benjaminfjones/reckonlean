@@ -1,5 +1,3 @@
-import Std.Tactic.GuardExpr
-
 import ReckonLean.Adder
 import ReckonLean.Dpll
 

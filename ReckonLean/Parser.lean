@@ -1,4 +1,3 @@
-import Std.Tactic.GuardExpr  -- provides #guard
 import ReckonLean.Common
 
 /- ------------------------------------------------------------------------- -/

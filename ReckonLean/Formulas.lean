@@ -5,7 +5,6 @@ Polymorphic type of formulas with parser and printer.
 -/
 
 import Init.Data.Format.Basic
-import Std.Tactic.GuardExpr
 
 import ReckonLean.Common
 import ReckonLean.Parser
