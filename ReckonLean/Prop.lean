@@ -437,6 +437,21 @@ open CNF
 #guard simpcnf <<"(p ∧ q) ∧ ~(r ∧ s)">> == [[<<"p">>], [<<"q">>], [<<"~r">>, <<"~s">>]]
 #guard print_pf (cnf <<"(p ∧ q) ∧ ~(r ∧ s)">>) == "<<p ∧ q ∧ (~r ∨ ~s)>>"
 
+-- Example from relevancy propagation paper:
+--   In this example, if l1 is assigned True, the values of l2, l3 are irrelavent and
+--   we don't need to propagate them (e.g. to theory solvers). In the Tseitin encoding this
+--   is hard to discover.
+--
+--   version that skips introducing Tseitin variables when possible
+def relprop_ex := <<"l1 ∨ (l2 ∧ l3)">>
+#guard print_pf (cnf relprop_ex) == "<<(l1 ∨ l2) ∧ (l1 ∨ l3)>>"
+#guard simpcnf relprop_ex == [[<<"l1">>, <<"l2">>], [<<"l1">>, <<"l3">>]]
+--   version that performs Tseitin directly
+#guard print_pf (defcnf relprop_ex) ==
+  "<<(l1 ∨ p_1 ∨ ~p_2) ∧ (l2 ∨ ~p_1) ∧ (l3 ∨ ~p_1) ∧ (p_1 ∨ ~l2 ∨ ~l3) ∧ p_2 ∧ (p_2 ∨ ~l1) ∧ (p_2 ∨ ~p_1)>>"
+--   optimized version has 4 clauses, matching the paper
+#guard print_cnf_formula_sets (defcnf_opt_sets relprop_ex) ==
+  [["l1", "p_1"], ["l2", "~p_1"], ["l3", "~p_1"], ["p_1", "~l2", "~l3"]]
 
 /- Trivial example: all the gory details in `mkdefcnf`, `andcnf`, ...  -/
 def triv := <<"p ∧ q">>
