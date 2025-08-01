@@ -58,7 +58,7 @@ decreasing_by
   calc
     (lexwhile prop cs).snd.length ≤ cs.length := lexwhile_monotonic prop cs
     _ < Nat.succ (cs).length := Nat.lt_of_succ_le (Nat.le_refl _)
-    _ = (c :: cs).length := List.length_cons c cs
+    _ = (c :: cs).length := by rw [List.length_cons]
     _ = (lexwhile space inp).snd.length := by rw [_hlw]
     _ ≤ inp.length := lexwhile_monotonic space inp
 
@@ -116,10 +116,10 @@ def make_parser {α : Type} [Inhabited α] (pfn: parser α) (inp: String) : Opti
 #guard lex (String.toList "2*((var_1 + x') + 11)") == ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"]
 #guard lex (String.toList "p ∧ q") == ["p", "∧", "q"]
 
-example : lex (String.toList "2*((var_1 + x') + 11)") =
-  ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"] := by rfl
+#guard lex (String.toList "2*((var_1 + x') + 11)") =
+  ["2", "*", "(", "(", "var_1", "+", "x'", ")", "+", "11", ")"]
 
-example : lex (String.toList "if (*p1-- == *p2++) then f() else g()")
+#guard lex (String.toList "if (*p1-- == *p2++) then f() else g()")
   = [
       "if",
       "(",
@@ -139,4 +139,4 @@ example : lex (String.toList "if (*p1-- == *p2++) then f() else g()")
       "g",
       "(",
       ")"
-    ] := by rfl
+    ]

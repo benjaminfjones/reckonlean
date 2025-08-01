@@ -20,11 +20,11 @@ $ lake build
 
 A full, cold build currently (`6c2bec9`) takes 1 min 50 seconds on an Ubuntu 22.03 t3.xlarge instance.
 
-Run the proof and test scripts:
+Run the proof and test scripts (`adder_test`, `ramsey_test`, `prime_test`, `herbrand_test`):
 
 ```
 $ lake build adder_test
-$ ./build/bin/adder_test
+$ lake exe adder_test
 ...
 
 $ lake build ramsey_test
@@ -32,4 +32,11 @@ $ ./build/bin/ramsey_test
 ...
 ```
 
+If using VSCode and neovim extension, be sure to select `--clean` startup option or you get red and yellow squiggles everywhere that make development impossible.
+
 See `lakefile.lean` for the set of proof and test scripts defined.
+
+## Upgrading Lean Version
+
+1. update `lean-toolchain` to the desired version
+2. update `lakefile.lean` Batteries version to match

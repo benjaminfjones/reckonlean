@@ -192,7 +192,7 @@ def backtrack : Trail α → Trail α
   | trail@(d :: ds) => if d.decision == .Deduced then backtrack ds else trail
 
 /- `backtrack` is monotonically decreasing -/
-theorem length_backtrack : ∀ tr : Trail α,
+theorem length_backtrack {α : Type} [BEq α] [Ord α] [Repr α] [Hashable α] : ∀ tr : Trail α,
   List.length (backtrack tr) ≤ List.length tr := by
     intro t
     induction t with

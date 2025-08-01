@@ -30,4 +30,4 @@ lean_exe «herbrand_test» {
   root := `HerbrandTest
 }
 
-require "leanprover-community" / "batteries"
+require "leanprover-community" / "batteries" @ git "main"

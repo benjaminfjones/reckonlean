@@ -1,4 +1,4 @@
-import Std.Data.MLList.Basic
+import Batteries.Data.MLList.Basic
 
 namespace PolymorphicDeriving
 
@@ -44,52 +44,28 @@ end StringManip
 -- slash dot!
 #eval (· * 2) 5
 
--- There is no Monad List instance in Prelude because `List` is eager. There is an instance for LazyList.
-#check (Monad List)  -- this is just a Type, there is no instance yet
-#check (Bind List)   -- also just a type
-
--- see Std4 MLList, a lazy list
-#check (MLList.instMonadMLList : Monad (MLList Id))
-
-/-
-invalid `do` notation, expected type is not a monad application
-  List Nat
-You can use the `do` notation in pure code by writing `Id.run do` instead of `do`, where `Id` is the identity monad.
--/
--- #eval (do pure [1] : List Nat)
-
-instance : Monad List where
-  pure := List.pure
-  bind := List.bind
-
-def nondet : List Nat :=
-  [1,2,3] >>= fun a =>
-  [10, 20, 30] >>= fun b =>
-  pure (a + b)
-
-#eval nondet
 
 section Panic
 
--- a contradiction can't be found in the second case; the conclusion does not hold
--- because if A[i]! panics then it's value is `default` as far as the type system is
--- concerned
-example (i: Nat) (x: Int) (A: Array Int) : A[i]! = x → A[i]? = some x := by
-  intro h
-  unfold getElem! at h
-  split at h
-  . unfold getElem?; simp_all
-  . sorry  -- h: x = outOfBounds
+theorem getD_eq_get? (a : Array α) (n: Nat) (d: α) : a.getD n d = (a[n]?).getD d := by
+  simp [Array.getD, Option.getD]
+  split <;> grind
 
-theorem getD_eq_get? (a : Array α) (n: Nat) (d: α) : a.getD n d = (a.get? n).getD d := by
-  simp [Array.get?, Array.getD, Option.getD]; split
-  . rfl
-  . simp
+theorem get!_eq_getD [Inhabited α] (a : Array α) (n: Nat): a[n]! = a.getD n default := rfl
 
-theorem get!_eq_getD [Inhabited α] (a : Array α) (n: Nat): a.get! n = a.getD n default := rfl
+theorem get!_eq_get? [Inhabited α] (a : Array α) (n: Nat):  a[n]! = (a[n]?).getD default := by
+  refine Eq.symm ((fun {α} {o} {a b} => Option.getD_eq_iff.mpr) ?_)
+  simp
+  by_cases (a.size ≤ n)
+  . apply Or.inr
+    constructor
+    . assumption
+    . grind
+  . sorry
 
-theorem get!_eq_get? [Inhabited α] (a : Array α) (n: Nat): a.get! n = (a.get? n).getD default := by
-  simp [get!_eq_getD, getD_eq_get?]
+
+
+
 
 example (i: Nat) (x: Int) (A: Array Int) : A[i]! = x → (A[i]?).getD default = x := by
   intro h

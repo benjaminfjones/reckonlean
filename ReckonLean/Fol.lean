@@ -43,9 +43,7 @@ def Fol.toString : Fol → String
   | ⟨ pred, [] ⟩ => s!"{pred}"
   | ⟨ pred, args ⟩ =>
     if hl : List.all pred.toList symbolic && args.length == 2 then
-      have h₂ : args.length = 2 := by simp_all
-      have _ : 1 ≤ args.length := by rw [h₂]; simp_arith
-      have _ : 2 ≤ args.length := by rw [h₂]; exact Nat.le_refl _
+      have h₂ : args.length = 2 := by grind
       s!"{args[0]} {pred} {args[1]}"
     else
       let arg_str := String.intercalate ", " (List.mapTR Term.to_string args)
@@ -402,7 +400,7 @@ theorem max_var_name_mem : ∀ (v: String), ∀ (vars: List String),
   induction vars with
   | nil =>
     intro hm
-    exact absurd hm (List.not_mem_nil v)
+    exact absurd hm (List.not_mem_nil)
   | cons x xs ih =>
     intro h
     rw [List.mem_cons] at h

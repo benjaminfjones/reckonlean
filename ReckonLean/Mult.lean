@@ -56,10 +56,10 @@ decreasing_by
   . exact Nat.zero_lt_of_ne_zero h
   . apply Nat.lt_succ_of_le; apply Nat.le_refl  -- or `simp_arith`
 
-example : bitlength 0 = 0 := by rfl
-example : bitlength 1 = 1 := by rfl
-example : bitlength 3 = 2 := by rfl
-example : bitlength 101 = 7 := by rfl
+#guard bitlength 0 == 0
+#guard bitlength 1 == 1
+#guard bitlength 3 == 2
+#guard bitlength 101 == 7
 
 /-! Return the `n`th bit of `x` as a Bool -/
 def bit (n x: Nat) : Bool :=

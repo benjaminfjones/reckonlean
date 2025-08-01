@@ -11,25 +11,23 @@ The original implementation in the Handbook uses Patricia trees. The one here
 is based on the builtin `Lean.Data.HashMap` type. The main difference being
 that the Patricia tree representation is canonical, whereas the HashMap
 representation depends on insertion order.
-
-Extensional equality obviously works in both representations. It remains to see
-whether that performs well enough to substitute for structural equality.
 -/
 
-import Lean.Data.HashMap
+import Std.Data.HashMap
 import ReckonLean.Common
 
 open Lean
+open Std.HashMap
 
 namespace Lean.HashMap
-  def mapVals {α: Type} [BEq α] [Hashable α] (f : β → γ) (xs : HashMap α β) : HashMap α γ :=
-    mkHashMap (capacity := xs.size) |> xs.fold fun acc k v => acc.insert k (f v)
+  def mapVals {α: Type} [BEq α] [Hashable α] (f : β → γ) (xs : Std.HashMap α β) : Std.HashMap α γ :=
+    emptyWithCapacity (capacity := xs.size) |> xs.fold fun acc k v => acc.insert k (f v)
 end Lean.HashMap
 
 namespace FPF
 
 structure Func (γ: Type) (δ: Type) [BEq γ] [Hashable γ] where
-  map : HashMap γ δ
+  map : Std.HashMap γ δ
 
 variable {α: Type} [BEq α] [Hashable α]
 variable {β: Type}
@@ -37,13 +35,13 @@ variable {β: Type}
 /-!
 The completely undefined function
 -/
-def empty : Func α β := {map := HashMap.empty}
+def empty : Func α β := {map := ∅ }
 /-! Alias for empty -/
 def undefined : Func α β := empty
 /-! Compose `func` with with a complete function on the range. -/
 def mapf (f: β → γ) (func: Func α β) : Func α γ := { map := HashMap.mapVals f func.map }
 /-! Fold over the graph of `func`-/
-def fold {δ : Type} (f : δ → α → β → δ) (init : δ) (func : Func α β) : δ := HashMap.fold f init func.map
+def fold {δ : Type} (f : δ → α → β → δ) (init : δ) (func : Func α β) : δ := Std.HashMap.fold f init func.map
 
 /- ------------------------------------------------------------------------- -/
 /- Mapping to sorted-list representation of the graph, domain and range.     -/
@@ -72,19 +70,19 @@ def ran [Ord α] [BEq α] [Ord β] [BEq β] (f: Func α β) : List β :=
 Apply an FPF with default function in case the function isn't defined.
 -/
 def applyd (f: Func α β) (default: α → β) (x: α) : β :=
-  match f.map.find? x with
+  match f.map.get? x with
   | some v => v
   | none => default x
 
 /-!
 Try to apply `f` to `x`
 -/
-def apply? (f: Func α β) (x: α) : Option β := f.map.find? x
+def apply? (f: Func α β) (x: α) : Option β := f.map.get? x
 
 /-!
 Apply `f` to `x`; panic if `f` is not defined there.
 -/
-def apply! [Inhabited β] (f: Func α β) (x: α) : β := f.map.find! x
+def apply! [Inhabited β] (f: Func α β) (x: α) : β := f.map.get! x
 
 /-!
 Is `f` defined at `x`?
@@ -152,11 +150,11 @@ def to_list (f: Func α β) : List (α × β) := f.map.toList
 #guard apply! (from_lists [0] [1]) 0 == 1
 #guard apply? (from_lists [0] [1]) 1 == none
 
--- Same `combine` example as above:
+-- Same `combine` example as above. Note: evaluated result is not order stable.
 #guard (to_list (combine (fun y y' => y + y') (fun x => x > 5)
          (from_lists [1,2] [2,1])
          (from_lists [1,2,3] [1,6,0]))) ==
-       [(3, 0), (1, 3)]
+       [(1, 3), (3, 0)]
 
 /-!
 Choose an arbitrary domain, range pair

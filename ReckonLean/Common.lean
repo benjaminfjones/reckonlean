@@ -16,6 +16,10 @@ end String
 
 namespace List
 
+  def pure : α → List α := fun a => [a]
+
+  def bind : List α → (α → List β) → List β := fun a f => List.flatMap f a
+
   /- Convenient List alises -/
   def mem {α: Type} [BEq α] (x: α) (xs: List α) : Bool := List.contains xs x
 
@@ -85,7 +89,7 @@ def uniq : List α → List α
   | l => l
 
 /- Merging of sorted lists (maintaining repetitions) -/
-def merge(l1 l2: List α) : List α :=
+def merge {α : Type} [Ord α] [BEq α] (l1 l2: List α) : List α :=
   match l1 with
   | [] => l2
   | l1@(h1 :: t1) => (
@@ -101,7 +105,7 @@ def merge(l1 l2: List α) : List α :=
           if (compare h1 h2).isLE then h1 :: merge t1 l2 else h2 :: merge l1 t2)
 termination_by l1.length + l2.length
 
-theorem merge_length : ∀ (l1 l2: List α), (merge l1 l2).length = l1.length + l2.length := by
+theorem merge_length  {α : Type} [Ord α] [BEq α] : ∀ (l1 l2: List α), (merge l1 l2).length = l1.length + l2.length := by
   intro l1 l2
   match l1 with
   | .nil => unfold merge; rw [List.length_nil, Nat.zero_add]
@@ -182,11 +186,11 @@ where
         have _ : t2.length < t2.length + 1 := Nat.lt_succ_self _
         have _ : t1.length < l1.length := by
           have hl : l1 = h1 :: t1 := congrArg Prod.fst hc
-          rw [hl, List.length_cons h1 t1]
+          rw [hl, List.length_cons]
           apply Nat.lt_succ_self
         have _ : t2.length < l2.length := by
           have hl : l2 = h2 :: t2 := congrArg Prod.snd hc
-          rw [hl, List.length_cons h2 t2]
+          rw [hl, List.length_cons]
           apply Nat.lt_succ_self
 
         if h1 == h2 then
@@ -271,14 +275,14 @@ where
     | _, [] => []
     | l1@(h1 :: t1), l2@(h2 :: t2) =>
         if h1 == h2 then
-          have _ : t1.length + t2.length < 2 + t1.length + (1 + t2.length) := by simp_arith
+          have _ : t1.length + t2.length < 2 + t1.length + (1 + t2.length) := by simp +arith
           h1 :: aux t1 t2
         else
           if compare h1 h2 == lt then
-            have _ : t1.length + l2.length < 1 + t1.length + l2.length := by simp_arith
+            have _ : t1.length + l2.length < 1 + t1.length + l2.length := by simp +arith
             aux t1 l2
           else
-            have _ : l1.length + t2.length < l1.length + (1 + t2.length) := by simp_arith
+            have _ : l1.length + t2.length < l1.length + (1 + t2.length) := by simp +arith
             aux l1 t2
   termination_by j1.length + j2.length
 
@@ -301,11 +305,11 @@ where
     | (h1 :: t1, h2 :: t2) =>
         have _ : t1.length < l1.length := by
           have hl : l1 = h1 :: t1 := congrArg Prod.fst hc
-          rw [hl, List.length_cons h1 t1]
+          rw [hl, List.length_cons]
           apply Nat.lt_succ_self
         have _ : t2.length < l2.length := by
           have hl : l2 = h2 :: t2 := congrArg Prod.snd hc
-          rw [hl, List.length_cons h2 t2]
+          rw [hl, List.length_cons]
           apply Nat.lt_succ_self
 
         if h1 == h2 then
