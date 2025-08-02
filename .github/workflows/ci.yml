@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"] # replace "main" with the default branch
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      # uses lean standard action with all default input values
+      - uses: leanprover/lean-action@v1
+        with:
+          auto-config: "true"
+      # use setup from lean-action to perform the following steps
+      - name: verify `lake exe adder_test` works
+        run: |
+          lake exe adder_test
+      - name: verify `lake exe prime_test` works
+        run: |
+          lake exe prime_test
+      - name: verify `lake exe ramsey_test` works
+        run: |
+          lake exe ramsey_test
+      - name: verify `lake exe herbrand_test` works
+        run: |
+          lake exe herbrand_test
