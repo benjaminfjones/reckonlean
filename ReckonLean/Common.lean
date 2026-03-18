@@ -124,16 +124,86 @@ theorem merge_length  {α : Type} [Ord α] [BEq α] : ∀ (l1 l2: List α), (mer
 #guard merge [5] [1,2] == [1, 2, 5]
 #guard merge [1,2] [1,3] == [1, 1, 2, 3]
 
-partial def mergepairs : List (List α) → List (List α) → List α
-  | s::[], [] => s
-  | l, [] => mergepairs [] l
-  | l, [ s1 ] => mergepairs (s1 :: l) []
-  | l, s1 :: s2 :: ss => mergepairs (merge s1 s2 :: l) ss
+/-- One pass of pairwise merging: merge adjacent pairs in `ss`, accumulating into `l`. -/
+def mergepairs_round (l ss : List (List α)) : List (List α) :=
+  match ss with
+  | [] => l
+  | [s1] => s1 :: l
+  | s1 :: s2 :: rest =>
+    have : rest.length < (s1 :: s2 :: rest).length := by
+      simp only [List.length_cons]; omega
+    mergepairs_round (merge s1 s2 :: l) rest
+termination_by ss.length
+
+private theorem mergepairs_round_length_aux {α : Type} [Ord α] [BEq α]
+    (l : List (List α)) (ss : List (List α))
+    : (mergepairs_round l ss).length ≤ l.length + (ss.length + 1) / 2 := by
+  match ss with
+  | [] => simp [mergepairs_round]
+  | [_] => simp [mergepairs_round, List.length_cons]
+  | s1 :: s2 :: rest =>
+    unfold mergepairs_round
+    have ih := mergepairs_round_length_aux (merge s1 s2 :: l) rest
+    simp only [List.length_cons] at *
+    omega
+termination_by ss.length
+
+private theorem mergepairs_round_length_ge {α : Type} [Ord α] [BEq α]
+    (l : List (List α)) (ss : List (List α))
+    : (mergepairs_round l ss).length ≥ l.length + (ss.length + 1) / 2 := by
+  match ss with
+  | [] => simp [mergepairs_round]
+  | [_] => simp [mergepairs_round, List.length_cons]
+  | s1 :: s2 :: rest =>
+    unfold mergepairs_round
+    have ih := mergepairs_round_length_ge (merge s1 s2 :: l) rest
+    simp only [List.length_cons] at *
+    omega
+termination_by ss.length
+
+theorem mergepairs_round_length {α : Type} [Ord α] [BEq α]
+    (l ss : List (List α))
+    : (mergepairs_round l ss).length = l.length + (ss.length + 1) / 2 := by
+  apply Nat.le_antisymm
+  · exact mergepairs_round_length_aux l ss
+  · exact mergepairs_round_length_ge l ss
+
+theorem mergepairs_round_length_lt {α : Type} [Ord α] [BEq α]
+    (l : List (List α)) (h : l.length ≥ 2) :
+    (mergepairs_round [] l).length < l.length := by
+  rw [mergepairs_round_length]
+  simp only [List.length_nil, Nat.zero_add]
+  omega
+
+/-- Repeatedly apply pairwise merging rounds until a single sorted list remains.
+
+The original mergepairs was partial because its two-argument recursive structure made termination
+hard to prove directly — case 2 (l, [] → mergepairs [] l) swaps arguments without decreasing any
+simple measure.
+
+I refactored it into two functions:
+
+mergepairs_round does one pass of pairwise merging (terminates on ss.length)
+mergepairs repeatedly applies rounds until ≤ 1 list remains (terminates on l.length)
+The key lemma mergepairs_round_length proves that a round with n input lists produces ⌈n/2⌉ output
+lists, which is strictly less than n when n ≥ 2. The sort function and all existing #guard tests pass
+unchanged.
+
+ -/
+def mergepairs : List (List α) → List α
+  | [] => []
+  | [s] => s
+  | a :: b :: rest =>
+    have hl : (a :: b :: rest).length ≥ 2 := by simp [List.length_cons]
+    have : (mergepairs_round (α := α) [] (a :: b :: rest)).length < (a :: b :: rest).length :=
+      mergepairs_round_length_lt (a :: b :: rest) hl
+    mergepairs (mergepairs_round [] (a :: b :: rest))
+termination_by l => l.length
 
 /- Bottom-up mergesort -/
 def sort : List α → List α
   | [] => []
-  | l => mergepairs [] ((fun x => [ x ]) <$> l)
+  | l => mergepairs ((fun x => [ x ]) <$> l)
 
 #guard sort [4, 3, 2, 1] == [1, 2, 3, 4]
 #guard sort [1, 3, 2, 1] == [1, 1, 2, 3]
