@@ -14,7 +14,30 @@ inductive Term where
 -- function: name, arguments; semantics will be defined in terms of an interpretation
 | Fn : String → List Term → Term
 deriving BEq, Hashable, Inhabited, Ord, Repr
+
 open Term
+
+def term_size : Term → Nat
+| Var _ => 0
+| Fn _ [] => 1
+| Fn _ (x :: rest) => 1 + term_size x + List.sum (List.map term_size rest)
+
+private theorem mem_le_sum (ts : List Term) (x : Term) (hx : x ∈ ts) :
+    term_size x ≤ List.sum (List.map term_size ts) := by
+  induction ts with
+  | nil => contradiction
+  | cons y ys ih =>
+    simp only [List.map, List.sum_cons]
+    rcases List.mem_cons.mp hx with rfl | hm
+    · omega
+    · have := ih hm
+      omega
+
+theorem term_size_mem_lt (f : String) (a : Term) (rest : List Term) (x : Term) (hx : x ∈ rest) :
+    term_size x < term_size (Fn f (a :: rest)) := by
+  simp [term_size]
+  have := mem_le_sum rest x hx
+  omega
 
 def Term.to_string : Term → String := term_to_string
 where
@@ -244,9 +267,17 @@ structure Interp (α : Type) where
 
 abbrev Valuation α := Func String α
 
-partial def termval [Inhabited α] (m: Interp α) (v: Valuation α) : Term → α
+def termval [Inhabited α] (m: Interp α) (v: Valuation α) : Term → α
   | Var x => apply! v x
-  | Fn f args => m.func f (List.mapTR (termval m v) args)
+  | Fn f [] => m.func f []
+  | Fn f (a :: rest) =>
+    have : term_size a < term_size (Fn f (a :: rest)) := by
+      simp [term_size]; grind
+    m.func f (termval m v a :: (rest.attach.map (fun ⟨x, hx⟩ =>
+      have : term_size x < term_size (Fn f (a :: rest)) :=
+        term_size_mem_lt f a rest x hx
+      termval m v x)))
+termination_by t => term_size t
 
 def holds [Inhabited α] (m: Interp α) (v: Valuation α) : Formula Fol → Bool
   | .False => false
