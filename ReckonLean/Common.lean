@@ -3,11 +3,11 @@ example : List.map (non (fun x => x % 2 = 0)) [0, 1, 2] = [false, true, false] :
 
 namespace String
 
-  def sliceString (str: String) (startByte stopByte: Nat) : Substring :=
+  def sliceString (str: String) (startByte stopByte: Nat) : Substring.Raw :=
     {str, startPos := {byteIdx := startByte}, stopPos := {byteIdx := stopByte}}
 
   def copySlice (str: String) (startByte stopByte: Nat) : String :=
-    (sliceString str startByte stopByte).toString
+    Substring.Raw.toString (sliceString str startByte stopByte)
 
 end String
 
