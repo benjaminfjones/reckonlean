@@ -263,7 +263,6 @@ termination_by t1 t2 => term_size t1 + term_size t2
 end
 
 /- Round trip a bunch of different terms -/
-#eval print_term 0 <<|"(x + 1) + 2"|>>
 #guard print_term 0 <<|"(x + 1) + 2"|>> == "(x + 1) + 2"
 #guard print_term 0 <<|"(x) + 2"|>> == "x + 2"
 #guard print_term 0 <<|"(x * y)^2"|>> == "(x * y)^2"
@@ -400,9 +399,13 @@ def every_nonzero_has_an_inverse := <|"forall x. ~(x = 0) ==> exists y. (x * y =
 
 
 /- The set of (free; they're all free!) variables in a term -/
-partial def free_vars_term : Term → List String
+def free_vars_term : Term → List String
   | Var x => [x]
-  | Fn _ args => Set.unions (List.mapTR free_vars_term args)
+  | Fn _ [] => []
+  | Fn s (t :: rest) =>
+    let ft := free_vars_term t
+    let frest := free_vars_term (Fn s rest)
+    Set.unions (ft :: [frest])
 
 /- The set of **all** variables in a formula -/
 def vars : Formula Fol → List String
