@@ -1,5 +1,3 @@
-import Batteries.Data.MLList.Basic
-
 namespace PolymorphicDeriving
 
   structure Foo (a: Type) where
@@ -22,6 +20,7 @@ namespace PolymorphicDeriving
 
 end PolymorphicDeriving
 
+/- TODO Needs to be updated
 namespace StringManip
 
 #check Substring
@@ -37,6 +36,7 @@ def sliceString' (str: String) (startByte stopByte: Nat) : Substring :=
 #eval (sliceString' "foobar" 0 10).toString  -- stops at the end: "foobar"
 
 end StringManip
+-/
 
 #check Nat.max
 #check String.toNat?

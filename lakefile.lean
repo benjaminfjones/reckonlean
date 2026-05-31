@@ -29,5 +29,3 @@ lean_exe «prime_test» {
 lean_exe «herbrand_test» {
   root := `HerbrandTest
 }
-
-require "leanprover-community" / "batteries" @ git "main"

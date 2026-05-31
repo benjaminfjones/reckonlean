@@ -4,8 +4,6 @@ import ReckonLean.FPF
 import ReckonLean.Parser
 import ReckonLean.Prop
 
-import Batteries.Data.List.Lemmas
-
 open Formula
 
 inductive Term where
