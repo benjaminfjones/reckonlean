@@ -389,6 +389,7 @@ def every_nonzero_has_an_inverse := <|"forall x. ~(x = 0) ==> exists y. (x * y =
 #guard holds bool_interp undefined every_nonzero_has_an_inverse
 #guard holds (mod_interp 2) undefined every_nonzero_has_an_inverse
 #guard holds (mod_interp 3) undefined every_nonzero_has_an_inverse
+#guard not $ holds (mod_interp 4) undefined every_nonzero_has_an_inverse
 
 /- Use the semantics of `mod_interp` to determine the prime numbers up to 45 -/
 #guard List.filter
