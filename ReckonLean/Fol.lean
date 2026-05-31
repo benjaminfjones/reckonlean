@@ -326,6 +326,7 @@ def termval [Inhabited α] (m: Interp α) (v: Valuation α) : Term → α
       termval m v x)))
 termination_by t => term_size t
 
+/-! Semantics of formulas in first-order logic -/
 def holds [Inhabited α] (m: Interp α) (v: Valuation α) : Formula Fol → Bool
   | .False => false
   | .True => true
@@ -395,6 +396,9 @@ def every_nonzero_has_an_inverse := <|"forall x. ~(x = 0) ==> exists y. (x * y =
   (List.drop 1 $ List.range (45+1)) ==
   [1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43]
 
+/- ------------------------------------------------------------------------- -/
+/- Variables and substitution                                                -/
+/- ------------------------------------------------------------------------- -/
 
 /- The set of (free; they're all free!) variables in a term -/
 def free_vars_term : Term → List String
