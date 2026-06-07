@@ -305,7 +305,8 @@ def main : IO Unit := do
     IO.println s!"Solving {name} ({tester_name})"
     let start <- IO.monoNanosNow
     let res := tester fm
+    IO.println s!"Done: no. instances tried {res}"
     let end_ <- IO.monoNanosNow
-    IO.println s!"Done: no. instances tried {res}. Duration {end_ - start} ns"
+    IO.println s!"Duration {end_ - start} ns"
     IO.println "----"
     )
