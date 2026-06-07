@@ -684,6 +684,12 @@ def prenex : Formula Fol → Formula Fol
 /-- Compute Prenex Normal Form -/
 def pnf : Formula Fol → Formula Fol := prenex ∘ nnf_fol ∘ simplify
 
+def ex_pnf_0 : Formula Fol := <|"P(x) ∧ forall y. P(y)"|>
+#guard print_fol (simplify ex_pnf_0) == "P(x) ∧ (forall y. P(y))"            -- printing adds redundant parens
+#guard print_fol (nnf_fol (simplify ex_pnf_0)) == "P(x) ∧ (forall y. P(y))"  -- no change
+#guard print_fol (pnf ex_pnf_0) == "forall y. P(x) ∧ P(y)"                   -- pull forall y. out in front of P(x)
+#guard print_fol (pnf <|"P(x) ∧ forall x. P(x)"|>) == "forall x'. P(x) ∧ P(x')"  -- make sure variable capture doesn't happen
+
 def ex_pnf_1 : Formula Fol := <|"(forall x. P(x) ∨ R(y)) ==> exists y z. Q(y) ∨ ~(exists z. P(z) ∧ Q(z))"|>
 
 /- Simplify removes one redundant quantifier over `z` -/
@@ -818,6 +824,13 @@ Overall Skolemization function:
 This function is satisfiability preserving for first-order formulas.
 -/
 def skolemize := specialize ∘ pnf ∘ askolemize
+
+-- Test different combinations of alternating quantifiers
+#guard print_fol (skolemize <|"exists x. forall y. P(x, y)"|>) == "P(c_x, y)"
+#guard print_fol (skolemize <|"exists x. forall y. exists z. P(x, y, z)"|>) == "P(c_x, y, f_z(y))"
+#guard print_fol (skolemize <|"forall x. exists y. P(x, y)"|>) == "P(x, f_y(x))"
+#guard print_fol (skolemize <|"exists z. forall x. exists y. P(x, y, z)"|>)  == "P(x, f_y(x), c_z)"
+#guard print_fol (skolemize <|"exists z. forall x. exists y. forall w. P(x, y, z, w)"|>)  == "P(x, f_y(x), c_z, w)"
 
 /- Clearly if `fm := c_x * c_d = 1` holds, then there is a model with constants `c_x, c_y` and an
 interpretation for `*` that satisfies `fm`. This implies that the original formula is satisfied, by
