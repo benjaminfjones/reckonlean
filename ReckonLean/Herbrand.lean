@@ -95,7 +95,7 @@ def print_fol_sets := List.map (List.map (print_qliteral (fun _ f => Fol.toStrin
 
 -- Instantiation function; replaces free vars w/ ground terms
 abbrev InstFn := Formula Fol → Formula Fol
--- Modification function: substitues into the first argument (original formula w/ free vars) using
+-- Modification function: substitutes into the first argument (original formula w/ free vars) using
 -- the instantiation function, then conjoins with third argument and uses distribution to get back to DNF.
 abbrev ModFn := DNFFormula Fol → InstFn → DNFFormula Fol → DNFFormula Fol
 -- Satisfiability test function

@@ -21,7 +21,7 @@ def p18_to_check := skolemize (.Not (generalize p18))
 -- 4. Gilmore loop
 --
 --    Level 0 of the ground instance enumeration has only `P(c) ∧ ~P(f_y(c))`. The propositional atoms
---    here are `c` and `f_y(c)` and there are clear interpretations of `P` and `f_y` under which the
+--    here are `P(c)` and `P(f_y(c))` and there are clear interpretations of `P` and `f_y` under which the
 --    formula is SAT.
 --
 --    Level 1 of the enumeration yields `P(f_y(c)) ∧ ~P(f_y(f_y(c)))`, but then the conjunction of this
