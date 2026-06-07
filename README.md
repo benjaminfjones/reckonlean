@@ -39,4 +39,6 @@ See `lakefile.lean` for the set of proof and test scripts defined.
 ## Upgrading Lean Version
 
 1. update `lean-toolchain` to the desired version
-2. update `lakefile.lean` Batteries version to match
+2. blow away the manifest and `.lake` directory
+3. `lake build`
+
